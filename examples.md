@@ -183,6 +183,42 @@ The "stop and ask" instruction is the safety valve — without it, this command 
 
 ---
 
+### Coarse Skill Pattern: /debug with Sub-Agent Delegation
+
+Instead of separate skills for debug-api, debug-frontend, debug-database — one broad skill that delegates:
+
+`.claude/commands/debug.md`:
+```markdown
+---
+allowed-tools: Read, Grep, Glob, Bash, Edit, Task
+argument-hint: <error or bug description>
+description: Debug any issue. Use when encountering errors, test failures, or unexpected behavior. Investigates, diagnoses, and fixes.
+---
+
+Investigate and fix: $ARGUMENTS
+
+## Process
+1. **Classify** — Is this a runtime error, test failure, build error, or logic bug?
+2. **Reproduce** — Find the code path that triggers the issue
+3. **Delegate** — Use sub-agents for parallel investigation:
+   - Spawn an Explore agent to search for related error patterns across the codebase
+   - Spawn an Explore agent to check recent git changes that may have introduced the bug
+4. **Diagnose** — Synthesize findings into a root cause
+5. **Fix** — Implement the minimal change that resolves it
+6. **Verify** — Run the relevant tests to confirm the fix
+
+## Output
+- **Root cause:** What went wrong and why
+- **Fix:** The specific code change
+- **Prevention:** How to prevent this class of bug
+```
+
+The `description` field is keyword-rich ("errors, test failures, unexpected behavior") so Claude routes here naturally. The skill itself delegates to Explore sub-agents for the research-heavy parts, keeping the main context focused on the fix.
+
+This one skill replaces 3-4 narrow debug skills while routing better — Claude has one clear match instead of choosing between overlapping descriptions.
+
+---
+
 ### Skill Collections
 
 | Collection | Notes |
@@ -420,6 +456,80 @@ Useful for picking up where you left off. Can also include project-specific remi
   "command": "echo 'REMINDERS:\\n- Use Bun, not npm\\n- Run tests before every commit\\n- Current focus: auth module refactor' && git log --oneline -3 && git status --short"
 }
 ```
+
+---
+
+### 6. Context Enrichment on Every Prompt (UserPromptSubmit)
+
+SessionStart context gets pushed back and "forgotten" in long sessions. UserPromptSubmit fires on every prompt submission — whatever your script writes to stdout gets injected alongside the user's prompt as additional context.
+
+**Basic: Inject project routing hints**
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'PROJECT CONTEXT:\\n- TypeScript monorepo (pnpm)\\n- Use /project:review for code reviews\\n- Use /project:test for writing tests\\n- Use /project:debug for bug investigation\\n- Always run pnpm test before committing'"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+This is soft routing — it reminds Claude which skills exist and when to use them. It's not deterministic (Claude can still ignore it), but it's re-injected every prompt so it survives long sessions where CLAUDE.md context fades.
+
+**Advanced: Auto-refresh context every N prompts**
+
+Based on [John Lindquist's pattern](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc) — tracks prompt count and re-injects heavier context periodically:
+
+`.claude/hooks/refresh-context.sh`:
+```bash
+#!/bin/bash
+COUNT_FILE="/tmp/claude-prompt-count"
+COUNT=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
+COUNT=$((COUNT + 1))
+echo "$COUNT" > "$COUNT_FILE"
+
+# Always inject lightweight routing
+echo "ROUTING: /project:review (code review) | /project:debug (bugs) | /project:test (tests)"
+
+# Every 10 prompts, re-inject heavier project context
+if [ $((COUNT % 10)) -eq 0 ]; then
+  echo ""
+  echo "PROJECT STATE:"
+  git branch --show-current
+  git status --short
+  echo ""
+  echo "RECENT CHANGES:"
+  git log --oneline -3
+fi
+```
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/refresh-context.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Why this matters:** In long sessions, Claude stops using tools and skills that were introduced at the start because the context has been pushed back or compacted. This pattern keeps routing and project state fresh.
 
 ---
 
@@ -670,9 +780,55 @@ Source: [Anthropic Engineering Blog](https://www.anthropic.com/engineering/build
 
 ## CLAUDE.md Examples
 
-Community consensus: **under 300 lines, opinionated, explains the "why."** For each line, ask: "Would removing this cause Claude to make mistakes?"
+Target: **60-80 lines.** Above ~150 lines, Claude starts ignoring instructions ([evidence](https://www.humanlayer.dev/blog/writing-a-good-claude-md)). For each line, ask: "Would removing this cause Claude to make mistakes?"
 
-### Minimal Effective Example (Next.js)
+### Routing Table Style (Recommended)
+
+The CLAUDE.md as a thin routing layer — tells Claude what the project is, how to build it, and where to go for more. Everything else lives in skills, hooks, or `.claude/rules/`.
+
+```markdown
+# Acme Dashboard
+
+Next.js 14 (App Router), TypeScript strict, Prisma ORM, Tailwind CSS.
+
+## Commands
+- `pnpm dev` — dev server on :3000
+- `pnpm test` — Vitest
+- `pnpm db:migrate` — Prisma migrations
+
+## Structure
+- `src/app/` — pages and layouts
+- `src/components/` — one component per file
+- `src/lib/` — shared utils, db client, auth
+- `src/server/` — API routes, background jobs
+- `prisma/` — schema and migrations
+
+## Skills
+- `/project:review` — code review checklist
+- `/project:debug` — structured bug investigation
+- `/project:test` — write tests for a module
+
+## Rules
+- Named exports only (no default exports)
+- Server Components by default. 'use client' only when needed.
+- All DB queries through `src/lib/db.ts`
+- `zod` for input validation at API boundaries
+
+## Never
+- Never modify `prisma/migrations/` directly
+- Never commit `.env`
+- Never use `any` — use `unknown` and narrow
+```
+
+~30 lines. The "Skills" section acts as a routing table — Claude knows what's available without needing the full skill content in context. Detailed review checklists, test patterns, and debug workflows live in the skill files themselves.
+
+Source: [HumanLayer: Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md) | [Arize: CLAUDE.md Optimization](https://arize.com/blog/claude-md-best-practices-learned-from-optimizing-claude-code-with-prompt-learning/)
+
+---
+
+### Pre-Simplification Example (What Most Teams Start With)
+
+This is what a CLAUDE.md looks like before teams learn to simplify. It works, but the length means instructions compete for attention:
 
 ```markdown
 # Project: Acme Dashboard
@@ -705,9 +861,9 @@ Next.js 14 (App Router), TypeScript strict, Prisma ORM, Tailwind CSS.
 - Never use `any` type — use `unknown` and narrow
 ```
 
-Short. Every line prevents a specific mistake. The "Never" section catches the most expensive errors.
+Still reasonable at ~30 lines, but notice the difference: no routing hints to skills, no progressive disclosure. As projects grow, this pattern balloons to 150+ lines and Claude starts dropping instructions.
 
-Source: [Builder.io: CLAUDE.md Guide](https://www.builder.io/blog/claude-md-guide) | [HumanLayer: Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md)
+Source: [Builder.io: CLAUDE.md Guide](https://www.builder.io/blog/claude-md-guide)
 
 ---
 
@@ -892,26 +1048,28 @@ Source: [MCPcat: Best MCP Servers for Claude Code](https://mcpcat.io/guides/best
 ## Getting Started Progression
 
 ### Day 1 (Starter)
-1. Run `/init` to create CLAUDE.md
+1. Run `/init` to create CLAUDE.md — keep it under 80 lines (routing table + non-negotiables)
 2. Add the Stop hook for notifications
-3. Create one skill for your most common task (/commit or /review)
+3. Add the block-dangerous-commands PreToolUse hook
 
 ### Week 2 (Intermediate)
-4. Add auto-format hook (PostToolUse)
-5. Add block-dangerous-commands hook (PreToolUse)
-6. Create 2-3 more skills (/test, /investigate)
-7. Learn `/compact` and Shift+Tab mode cycling
+4. Build 2-3 coarse skills (/review, /debug, /test) with explicit `description` fields
+5. Add auto-format hook (PostToolUse) — pick: per-edit OR per-commit, not both
+6. Learn `/compact` and Shift+Tab mode cycling
+7. Add a UserPromptSubmit hook for basic routing context
 
 ### Month 2 (Advanced)
-8. Build custom agents for specialized roles
+8. Build custom agents as specialists under your coarse skills
 9. Configure MCP servers for external integrations
 10. Set up CI/CD with headless mode (`-p` flag)
+11. Add a context-refresher UserPromptSubmit hook for long sessions
 
 ### What Not to Do
+- Don't bloat CLAUDE.md past 80 lines — prune, don't add. Move detail to skills and `.claude/rules/`
+- Don't build 10 narrow skills — build 3-5 coarse skills and let them delegate to sub-agents
 - Don't stack 5+ synchronous hooks (180-second delays reported)
 - Don't build custom agents for tasks the built-ins handle fine
-- Don't create skills for one-off tasks
-- Don't put generic programming advice in CLAUDE.md — every line should prevent a specific mistake
+- Don't put code style rules in CLAUDE.md that a linter can enforce via hooks
 - Don't format on every edit AND care about context preservation — pick one
 
 ---
@@ -930,6 +1088,9 @@ Source: [MCPcat: Best MCP Servers for Claude Code](https://mcpcat.io/guides/best
 ### Guides
 - [Builder.io: CLAUDE.md Guide](https://www.builder.io/blog/claude-md-guide) | [HumanLayer: Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md) | [Dometrain: Perfect CLAUDE.md](https://dometrain.com/blog/creating-the-perfect-claudemd-for-claude-code/) | [Gend.co: Skills & CLAUDE.md Guide](https://www.gend.co/blog/claude-skills-claude-md-guide)
 - [DataCamp: Hooks Tutorial](https://www.datacamp.com/tutorial/claude-code-hooks) | [MCPcat: Best MCP Servers](https://mcpcat.io/guides/best-mcp-servers-for-claude-code/)
+
+### Architecture & Optimization
+- [Anthropic: Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) | [Arize: CLAUDE.md Optimization via Prompt Learning](https://arize.com/blog/claude-md-best-practices-learned-from-optimizing-claude-code-with-prompt-learning/) | [alexop.dev: Progressive Disclosure](https://alexop.dev/posts/stop-bloating-your-claude-md-progressive-disclosure-ai-coding-tools/) | [paddo.dev: Skills Controllability Problem](https://paddo.dev/blog/claude-skills-controllability-problem/) | [paddo.dev: Hooks as Guardrails](https://paddo.dev/blog/claude-code-hooks-guardrails/) | [paddo.dev: How Boris Uses Claude Code](https://paddo.dev/blog/how-boris-uses-claude-code/) | [John Lindquist: Auto-Refresh Context](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc)
 
 ### GitHub Actions & CI/CD
 - [anthropics/claude-code-action](https://github.com/anthropics/claude-code-action) | [Skywork: CI/CD Guide](https://skywork.ai/blog/how-to-integrate-claude-code-ci-cd-guide-2025/)

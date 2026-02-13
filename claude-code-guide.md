@@ -27,16 +27,25 @@ Before diving in, orient yourself. Each tool serves a distinct purpose — confu
 
 ### The Layered Architecture
 
-The most successful setups use all features together:
+The most successful setups keep the always-on layer thin and push detail into on-demand layers:
 
 ```
-CLAUDE.md      → Always-on context (coding standards, architecture)
-Skills         → On-demand workflows (review, commit, investigate)
-Hooks          → Guaranteed automation (format, lint, notify, block)
-Sub-Agents     → Parallel work (research, multi-file analysis)
-MCP Servers    → External tool integration (Jira, databases, search)
-CLI flags      → Session-level control (model, permissions, output format)
+Always-on (small):
+  CLAUDE.md        → Routing table + non-negotiables (60-80 lines)
+  Skill metadata   → Short descriptions only (~100 tokens each)
+  Hooks            → Guaranteed automation (format, lint, notify, block)
+
+On-demand (loaded when matched):
+  Skills           → Full workflow prompts (loaded when invoked)
+  Sub-Agents       → Specialist delegation (own context window)
+  .claude/rules/   → Topic-specific context (loaded by path/relevance)
+  MCP Servers      → External tools (lazy-loaded via Tool Search)
+
+Session-level:
+  CLI flags        → Model, permissions, output format
 ```
+
+The guiding principle from Anthropic's context engineering research: **["Find the smallest set of high-signal tokens that maximize the likelihood of your desired outcome."](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)**
 
 ---
 
@@ -44,20 +53,47 @@ CLI flags      → Session-level control (model, permissions, output format)
 
 CLAUDE.md is not a "feature" like the others, but **it's the single most impactful configuration** for getting good results. It's a Markdown file at your project root that Claude reads at the start of every conversation.
 
-**Keep it short.** For each line, ask "Would removing this cause Claude to make mistakes?" Bloated files cause Claude to ignore your actual instructions as they get lost in noise.
+### The Instruction Budget
 
-**It guides behavior but doesn't enforce it.** Claude can and does ignore CLAUDE.md instructions, especially as the context fills. If something MUST happen, use a hook.
+Claude's system prompt already contains ~50 instructions. Research shows frontier LLMs follow approximately 150-200 instructions with reasonable consistency, with [degradation as count increases](https://www.humanlayer.dev/blog/writing-a-good-claude-md). Your CLAUDE.md is competing for attention in a limited budget.
+
+**Target: 60-80 lines.** Above ~150 lines, multiple teams report Claude ignoring instructions outright ([#6120](https://github.com/anthropics/claude-code/issues/6120), [#15443](https://github.com/anthropics/claude-code/issues/15443), [#19471](https://github.com/anthropics/claude-code/issues/19471)). [Arize found](https://arize.com/blog/claude-md-best-practices-learned-from-optimizing-claude-code-with-prompt-learning/) that optimizing system prompt content alone yielded 5%+ gains in general coding and +11% for repo-specific work. HumanLayer's own CLAUDE.md is [under 60 lines](https://github.com/humanlayer/humanlayer/blob/main/CLAUDE.md).
+
+For each line, ask: **"Would removing this cause Claude to make mistakes?"** If not, cut it.
+
+### What It Is (and Isn't)
+
+**It guides behavior but doesn't enforce it.** Claude can and does ignore CLAUDE.md instructions, especially as the context fills. If something MUST happen, use a hook. One developer's CLAUDE.md explicitly prohibited hardcoding API keys — [Claude did it anyway, costing $30,000](https://paddo.dev/blog/claude-code-hooks-guardrails/).
+
+**Think of CLAUDE.md as a routing table**, not a manual. It should tell Claude: what the project is, how to build/test it, where things live, and what to never do. Everything else should live in skills (on-demand), hooks (enforced), or `.claude/rules/` (topic-specific).
 
 **What belongs here:**
 - Build/test commands (`npm test`, `cargo build`)
 - Code style conventions that differ from defaults
-- Architecture decisions (where files go, naming patterns)
-- "Never do X" instructions (never modify `src/generated/`, always run lint after changes)
+- Architecture overview (where files go, module boundaries)
+- Hard "never do X" rules (never modify `src/generated/`, never commit `.env`)
+- Routing hints: which skills/agents to use for what
 
 **What doesn't:**
 - Anything needing guaranteed enforcement (use hooks)
-- Task-specific workflows (use skills)
+- Task-specific workflows (use skills — they load on demand, ~100 tokens for metadata)
 - Generic programming advice Claude already knows
+- Code style rules a linter can enforce — ["never send an LLM to do a linter's job"](https://www.humanlayer.dev/blog/writing-a-good-claude-md)
+- Personality instructions ("be a senior engineer") — wastes tokens, changes nothing
+
+### Progressive Disclosure
+
+For projects that outgrow 80 lines, use progressive disclosure instead of a massive CLAUDE.md:
+
+```
+CLAUDE.md              → Routing table + non-negotiables (60-80 lines)
+.claude/rules/         → Topic-specific context (loaded automatically)
+.claude/commands/      → On-demand workflows (~100 tokens metadata at startup)
+.claude/agents/        → Specialist delegation (loaded when matched)
+Hooks                  → Guaranteed enforcement (runs regardless)
+```
+
+Each layer loads only when needed. [Skills load at three levels](https://alexop.dev/posts/stop-bloating-your-claude-md-progressive-disclosure-ai-coding-tools/): metadata (~100 tokens always), instructions (<5K tokens when matched), resources (only during execution). This keeps the always-on context budget small while giving Claude access to deep knowledge on demand.
 
 ### The Three-Attempt Reality
 
@@ -66,7 +102,7 @@ From a [staff engineer's 6-week journey](https://www.sanity.io/blog/first-attemp
 - **Second attempt:** 50% garbage. You've refined CLAUDE.md based on failures.
 - **Third attempt:** Finally workable. Your project documentation is now calibrated.
 
-CLAUDE.md is an iterative document. You refine it based on where Claude fails.
+CLAUDE.md is an iterative document. You refine it based on where Claude fails. Even [Anthropic's own Claude Code team](https://paddo.dev/blog/how-boris-uses-claude-code/) contributes to their CLAUDE.md multiple times a week — and ruthlessly prunes it.
 
 ---
 
@@ -78,30 +114,40 @@ Markdown files that become slash commands. Put a `.md` file in `.claude/commands
 
 The design is deliberately simple. No YAML, no plugin API, no DSL. Just Markdown.
 
+### The Routing Mechanism
+
+Claude uses the `description` field in skill frontmatter to decide when to auto-invoke. Skill descriptions are loaded into context at startup so Claude knows what's available — but full skill content only loads when invoked. This is the key design: **descriptions are always-on (cheap), content is on-demand (loaded when matched).**
+
+The character budget for skill descriptions scales at 2% of the context window (~16K chars fallback). Too many skills with vague descriptions overwhelm this budget and degrade routing.
+
+**Fewer, coarser skills with explicit descriptions route better than many overlapping fine-grained ones.** A skill called "debug" with a clear description beats five narrow skills (debug-api, debug-frontend, debug-database, debug-auth, debug-tests) that compete for attention.
+
 ### When They Shine
 
 Skills are **prompt engineering encapsulation** — your best prompts saved for reuse instead of lost to chat history. The sweet spot is repeatable prompts you'd otherwise retype:
 
-- **Code review checklists** — the most popular skill. Type `/project:review` instead of remembering 10 things to check.
+- **Code review** — the most popular skill. Type `/project:review` instead of remembering 10 things to check.
 - **PR/commit message generation** — standardized formatting across the team.
-- **Bug investigation templates** — structured approaches ensuring consistent debugging.
+- **Bug investigation** — structured approaches ensuring consistent debugging.
 - **Onboarding** — new team members get the same prompts as veterans.
 
 Build skills for *style* — how code looks and functions (boilerplate, patterns, testing standards). This extends your CLAUDE.md without polluting global context.
+
+**The coarse skill pattern:** Build 3-5 broad skills (debug, review, test, deploy) with very explicit `description` fields, and let each skill delegate to sub-agents for specialized work. This gives you clear entry points with deep capability underneath.
 
 ### When They Don't
 
 - **One-off tasks** — creating a skill for something you'll do once is overhead.
 - **Anything requiring logic** — no conditional branching, no loops, no composition. If you need "if TypeScript do X, else do Y," you can't express it.
 - **Heavy parameterization** — `$ARGUMENTS` is your only variable. No named params, no flags.
-- **Broad "mega-skills"** — skills that try to cover too much often fail to activate or produce diluted results.
+- **Many overlapping skills** — [Claude has a limited description budget](https://code.claude.com/docs/en/skills). Five similar skills with vague descriptions degrade routing. Consolidate.
 - **When CLAUDE.md would suffice** — if an instruction applies to every interaction, it belongs in CLAUDE.md, not a skill.
 
 ### What the Community Reports
 
 **Positive:** Teams report dramatic alignment from project-level skills committed to git. The low barrier to entry is universally praised.
 
-**Negative:** Overly prescriptive skills backfire — Claude follows the letter rather than the spirit. Discoverability is weak — team members don't know what commands exist unless they explore `.claude/commands/`. Argument placement matters more than expected ("Review $ARGUMENTS for security issues" vs "Do a security review focusing on $ARGUMENTS" produces meaningfully different results). Many developers haven't adopted skills despite their simplicity.
+**Negative:** Overly prescriptive skills backfire — Claude follows the letter rather than the spirit. [paddo.dev identifies the controllability problem](https://paddo.dev/blog/claude-skills-controllability-problem/): Claude decides when to activate skills using semantic reasoning, and you can't force-invoke or prevent them (partially addressed in Claude Code 2.1 with `user-invocable: false`). Discoverability is weak — team members don't know what commands exist unless they explore `.claude/commands/`. Argument placement matters more than expected ("Review $ARGUMENTS for security issues" vs "Do a security review focusing on $ARGUMENTS" produces meaningfully different results).
 
 ### Popular Examples
 
@@ -141,6 +187,8 @@ Hooks are for **certainty, not intelligence.** Use them when behavior must be gu
 **The "Gatekeeper" pattern:** Run `npm test` before committing. If it fails, Claude must fix it. This creates a tight feedback loop where Claude self-corrects without your intervention.
 
 **The "Context Injector":** A hook running `git status` or `ls -R` at session start, ensuring Claude always knows the ground truth state of the repo.
+
+**The "Context Refresher":** A UserPromptSubmit hook that [re-injects important context every N prompts](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc). SessionStart context gets pushed back and "forgotten" in long sessions — this pattern solves that. Whatever a UserPromptSubmit hook writes to stdout gets added to Claude's context alongside your prompt. Use this to inject project state, sprint priorities, or routing hints that influence which skills/agents Claude reaches for.
 
 ### When They Don't
 
@@ -357,13 +405,13 @@ $1,000-1,500/month for senior engineers using it heavily. Opus access requires $
 
 ## Getting Started (Priority Order)
 
-1. **Run `/init`** to create your CLAUDE.md. This is the highest-ROI action.
-2. **Iterate on CLAUDE.md** based on where Claude fails. Expect 2-3 rounds.
-3. **Build 1-2 skills** for your most painful, repetitive task (e.g., "New API Endpoint," "Code Review").
-4. **Add a Stop hook** for notifications — easy win, zero risk.
-5. **Only then** explore sub-agents, MCP servers, and advanced hooks.
+1. **Run `/init`** to create your CLAUDE.md. Keep it under 80 lines — routing table + non-negotiables.
+2. **Add a Stop hook** for notifications and a PreToolUse hook for dangerous command blocking — easy wins, zero risk.
+3. **Build 2-3 coarse skills** (review, debug, test) with explicit `description` fields. Let each delegate to sub-agents for specialized work.
+4. **Iterate on CLAUDE.md** by pruning. When Claude ignores an instruction, the file is probably too long. Cut lines, don't add them.
+5. **Only then** explore custom agents, MCP servers, and UserPromptSubmit context injection.
 
-Don't write custom agents yet. Don't stack 5 hooks on day one. Start simple, add complexity as you understand the failure modes.
+Don't front-load everything into CLAUDE.md. Don't build 10 narrow skills. Don't stack 5 synchronous hooks. Start simple, add complexity as you understand the failure modes. The teams getting the best results — [including Anthropic's own](https://paddo.dev/blog/how-boris-uses-claude-code/) — converge on minimal instructions with hooks for enforcement.
 
 ---
 
@@ -377,6 +425,9 @@ Don't write custom agents yet. Don't stack 5 hooks on day one. Start simple, add
 
 ### Developer Experience
 - [Sanity: First Attempt Will Be 95% Garbage](https://www.sanity.io/blog/first-attempt-will-be-95-garbage) | [Sankalp: Claude Code 2.0 Experience](https://sankalp.bearblog.dev/my-experience-with-claude-code-20-and-how-to-get-better-at-using-coding-agents/) | [Builder.io: How I Use Claude Code](https://www.builder.io/blog/claude-code) | [sshh.io: How I Use Every Feature](https://blog.sshh.io/p/how-i-use-every-claude-code-feature) | [Getting Good Results](https://www.dzombak.com/blog/2025/08/getting-good-results-from-claude-code/) | [HumanLayer: Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md) | [Kelsey Piper: I Can't Stop Yelling at Claude Code](https://www.theargumentmag.com/p/i-cant-stop-yelling-at-claude-code) | [Medium: Hooks 6-Month Production Report](https://alirezarezvani.medium.com/the-claude-code-hooks-nobody-talks-about-my-6-month-production-report-30eb8b4d9b30)
+
+### Architecture & Optimization
+- [Anthropic: Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) | [Arize: CLAUDE.md Best Practices from Prompt Learning](https://arize.com/blog/claude-md-best-practices-learned-from-optimizing-claude-code-with-prompt-learning/) | [alexop.dev: Progressive Disclosure for AI Coding Tools](https://alexop.dev/posts/stop-bloating-your-claude-md-progressive-disclosure-ai-coding-tools/) | [paddo.dev: Skills Controllability Problem](https://paddo.dev/blog/claude-skills-controllability-problem/) | [paddo.dev: Hooks as Guardrails That Actually Work](https://paddo.dev/blog/claude-code-hooks-guardrails/) | [paddo.dev: How Boris Uses Claude Code](https://paddo.dev/blog/how-boris-uses-claude-code/) | [John Lindquist: Auto-Refresh Context Every N Prompts](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc) | [GitButler: Automate Workflows with Hooks](https://blog.gitbutler.com/automate-your-ai-workflows-with-claude-code-hooks)
 
 ### Community & Issues
 - [The Register: Usage Limits](https://www.theregister.com/2026/01/05/claude_devs_usage_limits/) | [GitHub #9094: Usage Limits](https://github.com/anthropics/claude-code/issues/9094) | [Community Struggles Gist](https://gist.github.com/eonist/0a5f4ae592eadafd89ed122a24e50584) | [GitHub #21988: Hook Exit Codes](https://github.com/anthropics/claude-code/issues/21988) | [GitHub #3523: Hook Duplication](https://github.com/anthropics/claude-code/issues/3523)
