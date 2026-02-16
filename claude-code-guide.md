@@ -278,6 +278,28 @@ If the task is "research or review" rather than "decide or build," use a sub-age
 
 Running main sessions on Opus with Sonnet sub-agents (`CLAUDE_CODE_SUBAGENT_MODEL`) significantly reduces costs while maintaining quality for research/review tasks.
 
+### Agent Teams (Experimental, New in Feb 2026)
+
+Agent Teams are different from regular sub-agents: they add a lead + teammate model where teammates can communicate with each other and share a task list.
+
+**Enablement:** off by default. Set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` (env or settings).
+
+**What appears true so far (confidence-ranked):**
+
+- **High confidence (official):** Feature exists and is explicitly experimental, with known limitations (resume gaps, task status lag, slower shutdown, no nested teams, one team per lead session). Cost can be much higher than single-session flows (docs call out roughly ~7x in some plan-mode scenarios).
+- **Medium confidence (named practitioners with hands-on reports):**
+  - [Addy Osmani](https://addyosmani.com/blog/claude-code-agent-teams/) reports strongest wins on parallelizable work (clear ownership boundaries, independent files/domains), and highlights cost/coordination overhead if decomposition is weak.
+  - [Eric Buess](https://www.linkedin.com/posts/ebuess_claude-code-agent-teams-supervision-by-autonomous-activity-7335740096966541312-wm2x) describes an "autonomous supervision" workflow where lead reviews teammate output before integration.
+  - [Matthew Hartman](https://www.linkedin.com/posts/mjhartman_enhance-your-development-workflow-with-agent-activity-7336953312526481408-Olpc) reports agent teams helped front-end + back-end split work in parallel on smaller feature tasks.
+- **Lower confidence (anonymous but repeated):** HN/Reddit users consistently report two themes: big speedups for embarrassingly parallel tasks, and steep token burn/permission friction for tightly-coupled work.
+
+**Practical heuristic (2026 reality):**
+
+- Use Agent Teams for **parallel discovery/review/build lanes** with low file overlap.
+- Prefer normal sub-agents (or single agent) for **sequential reasoning** or shared-file edits.
+- Cap to **2-4 teammates** first; productivity and costs often worsen past that unless orchestration is mature.
+- Treat teams as **throughput tool, not quality guarantee**. Keep tests and explicit acceptance criteria in the lead prompt.
+
 ---
 
 ## Commands & CLI
@@ -418,19 +440,19 @@ Don't front-load everything into CLAUDE.md. Don't build 10 narrow skills. Don't 
 ## References
 
 ### Official Documentation
-- [Overview](https://code.claude.com/docs/en/overview) | [Skills](https://code.claude.com/docs/en/skills) | [Hooks](https://code.claude.com/docs/en/hooks) | [Hooks Guide](https://code.claude.com/docs/en/hooks-guide) | [Sub-Agents](https://code.claude.com/docs/en/sub-agents) | [Best Practices](https://code.claude.com/docs/en/best-practices) | [CLI Reference](https://code.claude.com/docs/en/cli-reference) | [Headless Mode](https://code.claude.com/docs/en/headless) | [MCP](https://code.claude.com/docs/en/mcp)
+- [Overview](https://code.claude.com/docs/en/overview) | [Skills](https://code.claude.com/docs/en/skills) | [Hooks](https://code.claude.com/docs/en/hooks) | [Hooks Guide](https://code.claude.com/docs/en/hooks-guide) | [Sub-Agents](https://code.claude.com/docs/en/sub-agents) | [Agent Teams](https://code.claude.com/docs/en/agent-teams) | [Costs](https://code.claude.com/docs/en/costs) | [Best Practices](https://code.claude.com/docs/en/best-practices) | [CLI Reference](https://code.claude.com/docs/en/cli-reference) | [Headless Mode](https://code.claude.com/docs/en/headless) | [MCP](https://code.claude.com/docs/en/mcp)
 
 ### Anthropic Engineering
 - [Building a C Compiler with Parallel Claudes](https://www.anthropic.com/engineering/building-c-compiler) | [Equipping Agents with Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) | [Enabling Autonomous Claude Code](https://www.anthropic.com/news/enabling-claude-code-to-work-more-autonomously) | [How to Configure Hooks](https://claude.com/blog/how-to-configure-hooks)
 
 ### Developer Experience
-- [Sanity: First Attempt Will Be 95% Garbage](https://www.sanity.io/blog/first-attempt-will-be-95-garbage) | [Sankalp: Claude Code 2.0 Experience](https://sankalp.bearblog.dev/my-experience-with-claude-code-20-and-how-to-get-better-at-using-coding-agents/) | [Builder.io: How I Use Claude Code](https://www.builder.io/blog/claude-code) | [sshh.io: How I Use Every Feature](https://blog.sshh.io/p/how-i-use-every-claude-code-feature) | [Getting Good Results](https://www.dzombak.com/blog/2025/08/getting-good-results-from-claude-code/) | [HumanLayer: Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md) | [Kelsey Piper: I Can't Stop Yelling at Claude Code](https://www.theargumentmag.com/p/i-cant-stop-yelling-at-claude-code) | [Medium: Hooks 6-Month Production Report](https://alirezarezvani.medium.com/the-claude-code-hooks-nobody-talks-about-my-6-month-production-report-30eb8b4d9b30)
+- [Sanity: First Attempt Will Be 95% Garbage](https://www.sanity.io/blog/first-attempt-will-be-95-garbage) | [Sankalp: Claude Code 2.0 Experience](https://sankalp.bearblog.dev/my-experience-with-claude-code-20-and-how-to-get-better-at-using-coding-agents/) | [Builder.io: How I Use Claude Code](https://www.builder.io/blog/claude-code) | [sshh.io: How I Use Every Feature](https://blog.sshh.io/p/how-i-use-every-claude-code-feature) | [Addy Osmani: Claude Code Agent Teams](https://addyosmani.com/blog/claude-code-agent-teams/) | [Getting Good Results](https://www.dzombak.com/blog/2025/08/getting-good-results-from-claude-code/) | [HumanLayer: Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md) | [Kelsey Piper: I Can't Stop Yelling at Claude Code](https://www.theargumentmag.com/p/i-cant-stop-yelling-at-claude-code) | [Medium: Hooks 6-Month Production Report](https://alirezarezvani.medium.com/the-claude-code-hooks-nobody-talks-about-my-6-month-production-report-30eb8b4d9b30)
 
 ### Architecture & Optimization
 - [Anthropic: Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) | [Arize: CLAUDE.md Best Practices from Prompt Learning](https://arize.com/blog/claude-md-best-practices-learned-from-optimizing-claude-code-with-prompt-learning/) | [alexop.dev: Progressive Disclosure for AI Coding Tools](https://alexop.dev/posts/stop-bloating-your-claude-md-progressive-disclosure-ai-coding-tools/) | [paddo.dev: Skills Controllability Problem](https://paddo.dev/blog/claude-skills-controllability-problem/) | [paddo.dev: Hooks as Guardrails That Actually Work](https://paddo.dev/blog/claude-code-hooks-guardrails/) | [paddo.dev: How Boris Uses Claude Code](https://paddo.dev/blog/how-boris-uses-claude-code/) | [John Lindquist: Auto-Refresh Context Every N Prompts](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc) | [GitButler: Automate Workflows with Hooks](https://blog.gitbutler.com/automate-your-ai-workflows-with-claude-code-hooks)
 
 ### Community & Issues
-- [The Register: Usage Limits](https://www.theregister.com/2026/01/05/claude_devs_usage_limits/) | [GitHub #9094: Usage Limits](https://github.com/anthropics/claude-code/issues/9094) | [Community Struggles Gist](https://gist.github.com/eonist/0a5f4ae592eadafd89ed122a24e50584) | [GitHub #21988: Hook Exit Codes](https://github.com/anthropics/claude-code/issues/21988) | [GitHub #3523: Hook Duplication](https://github.com/anthropics/claude-code/issues/3523)
+- [HN: Claude Code Agent Teams Thread](https://news.ycombinator.com/item?id=46902368) | [HN: Opus 4.6 Launch Thread](https://news.ycombinator.com/item?id=46902223) | [Reddit: Agent Teams Early Testing](https://www.reddit.com/r/ClaudeCode/comments/1qwxah9/anyone_testing_agent_teams/) | [Reddit: Agent Teams Discussion](https://www.reddit.com/r/ClaudeCode/comments/1r0n4ma/agent_teams/) | [The Register: Usage Limits](https://www.theregister.com/2026/01/05/claude_devs_usage_limits/) | [GitHub #9094: Usage Limits](https://github.com/anthropics/claude-code/issues/9094) | [Community Struggles Gist](https://gist.github.com/eonist/0a5f4ae592eadafd89ed122a24e50584) | [GitHub #21988: Hook Exit Codes](https://github.com/anthropics/claude-code/issues/21988) | [GitHub #3523: Hook Duplication](https://github.com/anthropics/claude-code/issues/3523)
 
 ### Collections & Toolkits
 - [awesome-claude-code (21.6k stars)](https://github.com/hesreallyhim/awesome-claude-code) | [awesome-claude-code-toolkit](https://github.com/rohitg00/awesome-claude-code-toolkit) | [everything-claude-code](https://github.com/affaan-m/everything-claude-code) | [Claude Command Suite](https://github.com/qdhenry/Claude-Command-Suite) | [claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) | [Claude Plugins Directory](https://claude-plugins.dev/)
