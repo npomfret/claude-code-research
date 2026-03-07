@@ -6,216 +6,198 @@ Copy-paste-ready examples of the most useful skills, hooks, agent patterns, CLAU
 
 ---
 
-## Skills (Custom Slash Commands)
+## Agent Skills
 
-Skills live in `.claude/commands/` as markdown files. They become `/project:<name>` slash commands. The pattern: if you've typed the same instruction 3+ times, it should be a skill.
+Agent Skills are not the same thing as custom slash commands.
 
-### /commit — Auto-Commit with Sanity Checks
+- **Skills** live in `.claude/skills/<skill-name>/SKILL.md` and are invoked by Claude when the request matches the description
+- **Slash commands** live in `.claude/commands/*.md` and are invoked explicitly by typing `/command-name`
+- **Plugins** can bundle both
 
-The most common first skill teams build. Catches the embarrassing stuff before it hits the repo.
+If you want Claude Code to "know how we do code review here," build a skill. If you want a deterministic shortcut like `/review-pr`, build a slash command.
+
+### `code-review` Skill with Supporting Files
+
+Good example of the new model: one capability, one folder, real supporting artifacts.
+
+`.claude/skills/code-review/SKILL.md`:
+```markdown
+---
+name: code-review
+description: Review diffs and pull requests for correctness, security, performance, and missing tests. Use when asked to review code, inspect a PR, or audit recent changes.
+---
+
+# Code Review Skill
+
+Use the checklist in `checklist.md`.
+Use `scripts/collect-diff.sh` to gather the exact diff context before reviewing.
+
+Process:
+1. Collect the diff and changed files
+2. Review against the checklist
+3. Report findings by severity: Critical, Warning, Suggestion
+4. Prefer concrete fixes over generic advice
+
+## Version History
+- v1.2.0: Added explicit test-gap and migration-risk checks
+```
+
+`.claude/skills/code-review/checklist.md`:
+```markdown
+# Review Checklist
+
+## Correctness
+- Does the implementation satisfy the intended behavior?
+- Are edge cases handled?
+
+## Security
+- Are inputs validated?
+- Are secrets or tokens exposed?
+
+## Performance
+- Any N+1 queries, repeated parsing, or avoidable allocations?
+
+## Testing
+- Are new branches covered?
+- Are failure modes tested?
+```
+
+`.claude/skills/code-review/scripts/collect-diff.sh`:
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+git diff --name-only HEAD~1
+printf '\n---\n'
+git diff HEAD~1
+```
+
+This is where skills shine: the workflow is no longer trapped in one prompt file.
+
+---
+
+### `debug-workflow` Skill with Sub-Agent Delegation
+
+Use one coarse skill instead of five narrow ones.
+
+`.claude/skills/debug-workflow/SKILL.md`:
+```markdown
+---
+name: debug-workflow
+description: Investigate and fix runtime bugs, test failures, build errors, and regressions. Use when something is broken or behaving unexpectedly.
+---
+
+# Debug Workflow
+
+Process:
+1. Reproduce the issue
+2. Trace the failing code path
+3. Delegate search-heavy work to subagents
+4. Form a root-cause hypothesis
+5. Implement the minimal fix
+6. Verify with focused tests
+
+When delegating:
+- Use one subagent to inspect recent git changes
+- Use one subagent to search for related failures across the codebase
+
+Output:
+- Root cause
+- Fix
+- Regression risk
+- Prevention
+```
+
+The important part is the `description`, not clever prose in the body. Discovery quality rises or falls with the description.
+
+---
+
+### Pair a Skill with a Thin Slash Command
+
+This is the cleanest hybrid pattern.
+
+`.claude/commands/review-pr.md`:
+```markdown
+---
+description: Review the current branch or a named PR using the project's review workflow
+argument-hint: [pr number or diff target]
+allowed-tools: Read, Grep, Glob, Bash(git diff:*), Bash(gh pr view:*)
+disable-model-invocation: true
+---
+
+Review $ARGUMENTS using the `code-review` skill if it is available.
+If no argument is provided, review the current branch diff against `HEAD~1`.
+```
+
+Use this when you want both:
+
+- A discoverable reusable skill
+- A deterministic entry point for humans
+
+`disable-model-invocation: true` is important here. It stops Claude from treating the slash command itself as an automatic tool choice.
+
+---
+
+### Structured Slash Command for Commits
+
+Slash commands still matter for highly explicit workflows.
 
 `.claude/commands/commit.md`:
 ```markdown
 ---
 allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*)
 argument-hint: [message]
-description: Commit with sanity checks
+description: Commit staged changes with sanity checks
 model: haiku
+disable-model-invocation: true
 ---
 
 Before committing, check changed files for:
 - TODO comments
 - console.log or print statements
 - Commented-out code blocks
-- Test flags left enabled (e.g. .only, .skip)
+- Test flags left enabled such as `.only` or `.skip`
 
 If clean, commit with message: $ARGUMENTS
-If issues found, list them and ask whether to proceed.
+If issues are found, stop and list them.
 ```
 
-Uses Haiku (fast, cheap) because the task is simple pattern-matching.
+This is a better fit as a slash command than a skill because the user is explicitly asking to commit right now.
 
 ---
 
-### /review — Code Review Checklist
+### Skill Layout for Runbooks and Templates
 
-Encapsulates your team's review standards so nothing gets missed.
+One of the most useful new patterns is putting reference material next to the skill.
 
-`.claude/commands/review.md`:
-```markdown
----
-allowed-tools: Read, Grep, Glob, Bash(git diff:*)
-description: Comprehensive PR review
----
-
-## Changed Files
-!`git diff --name-only HEAD~1`
-
-## Detailed Changes
-!`git diff HEAD~1`
-
-## Review Checklist
-For each changed file, evaluate:
-
-1. **Correctness** — Does the logic do what it claims?
-2. **Security** — SQL injection, XSS, secrets in code, input validation
-3. **Performance** — N+1 queries, unnecessary allocations, missing indexes
-4. **Error handling** — Are failures handled gracefully? Are errors swallowed silently?
-5. **Test coverage** — Are new code paths tested? Are edge cases covered?
-6. **Naming** — Are variables/functions descriptive? Would a new team member understand?
-
-Provide specific, actionable feedback. Organize by priority: Critical > Warning > Suggestion.
-For each issue, show the problematic code and a concrete fix.
+```text
+.claude/
+  skills/
+    release-checks/
+      SKILL.md
+      runbook.md
+      rollback.md
+      templates/
+        release-summary.md
+      scripts/
+        verify-release.sh
 ```
 
-The `` !` `` backtick syntax injects command output directly into the prompt — documented in the [official skills docs](https://code.claude.com/docs/en/skills).
+That structure is much easier to maintain than an enormous `CLAUDE.md`.
 
 ---
 
-### /investigate — Structured Bug Investigation
+### Built-In and Plugin-Provided Skills
 
-Forces systematic debugging instead of random poking.
+Claude Code now has both bundled skills and plugin-delivered skills. Official docs call out bundled skills such as:
 
-`.claude/commands/investigate.md`:
-```markdown
----
-allowed-tools: Read, Grep, Glob, Bash(git log:*), Bash(git diff:*)
-argument-hint: <bug description>
-description: Structured bug investigation
----
+- `/batch`
+- `/debug`
+- `/loop`
+- `/simplify`
+- `/claude-api`
 
-Investigate this bug: $ARGUMENTS
-
-Follow this process:
-1. **Reproduce** — Find the code path that triggers the bug
-2. **Trace** — Follow the data flow from input to failure point
-3. **Isolate** — Identify the smallest code change that would fix it
-4. **Verify** — Check if the fix introduces regressions
-5. **Root cause** — Explain *why* the bug exists (not just *what* is wrong)
-
-Output format:
-- **Summary:** One-sentence description
-- **Root cause:** What went wrong and why
-- **Fix:** Specific code change with diff
-- **Risk:** What could break if we apply this fix
-- **Prevention:** How to prevent similar bugs (test, lint rule, type change)
-```
-
-The value is in forcing Claude to diagnose before prescribing — without this structure, it tends to jump to a "fix" that addresses symptoms, not causes.
-
----
-
-### /test — Generate Tests for a Module
-
-`.claude/commands/test.md`:
-```markdown
----
-allowed-tools: Read, Write, Bash, Grep, Glob
-argument-hint: <file or module path>
-description: Write comprehensive tests
----
-
-Write tests for: $ARGUMENTS
-
-1. Read the file and understand its public API
-2. Detect the test framework already in use (Jest, pytest, Vitest, etc.)
-3. Follow existing test patterns in this project (check nearby test files)
-4. Write tests covering:
-   - Happy path for each public function
-   - Edge cases (empty input, null, boundary values)
-   - Error conditions (invalid input, network failures)
-   - Integration points (does it work with its real dependencies?)
-
-Do NOT write mock-heavy tests that test implementation details.
-Test behavior, not implementation.
-```
-
-The instruction to detect the existing framework and follow project patterns is critical — without it, Claude often generates tests in the wrong style or framework.
-
----
-
-### /explain — Onboarding Deep-Dive
-
-`.claude/commands/explain.md`:
-```markdown
----
-allowed-tools: Read, Grep, Glob
-argument-hint: <module or file path>
-description: Deep explanation of a code area for onboarding
----
-
-Explain this code area to someone joining the team: $ARGUMENTS
-
-1. Start with an analogy comparing it to something from everyday life
-2. Draw an ASCII diagram showing the flow or structure
-3. Walk through the code step-by-step, explaining *why* each decision was made
-4. Highlight common gotchas or misconceptions
-5. List the most important files and their roles
-6. Explain how this module connects to the rest of the system
-```
-
----
-
-### /commit-push-pr — One-Command Ship
-
-`.claude/commands/commit-push-pr.md`:
-```markdown
----
-allowed-tools: Bash(git:*), Bash(gh:*)
-argument-hint: [description of changes]
-description: Commit, push, and open PR in one step
----
-
-1. Run `git status` to see what's changed
-2. Stage all relevant changes (not .env, not .DS_Store)
-3. Generate a conventional commit message from the diff
-4. Commit, push to current branch
-5. Create a PR using `gh pr create` with:
-   - Clear title summarizing the change
-   - Body describing what changed and why
-   - Link to any related issues
-
-If anything looks wrong at any step, stop and ask.
-$ARGUMENTS
-```
-
-The "stop and ask" instruction is the safety valve — without it, this command is a footgun.
-
----
-
-### Coarse Skill Pattern: /debug with Sub-Agent Delegation
-
-Instead of separate skills for debug-api, debug-frontend, debug-database — one broad skill that delegates:
-
-`.claude/commands/debug.md`:
-```markdown
----
-allowed-tools: Read, Grep, Glob, Bash, Edit, Task
-argument-hint: <error or bug description>
-description: Debug any issue. Use when encountering errors, test failures, or unexpected behavior. Investigates, diagnoses, and fixes.
----
-
-Investigate and fix: $ARGUMENTS
-
-## Process
-1. **Classify** — Is this a runtime error, test failure, build error, or logic bug?
-2. **Reproduce** — Find the code path that triggers the issue
-3. **Delegate** — Use sub-agents for parallel investigation:
-   - Spawn an Explore agent to search for related error patterns across the codebase
-   - Spawn an Explore agent to check recent git changes that may have introduced the bug
-4. **Diagnose** — Synthesize findings into a root cause
-5. **Fix** — Implement the minimal change that resolves it
-6. **Verify** — Run the relevant tests to confirm the fix
-
-## Output
-- **Root cause:** What went wrong and why
-- **Fix:** The specific code change
-- **Prevention:** How to prevent this class of bug
-```
-
-The `description` field is keyword-rich ("errors, test failures, unexpected behavior") so Claude routes here naturally. The skill itself delegates to Explore sub-agents for the research-heavy parts, keeping the main context focused on the fix.
-
-This one skill replaces 3-4 narrow debug skills while routing better — Claude has one clear match instead of choosing between overlapping descriptions.
+Treat these as built-in accelerators, not replacements for repo-specific skills. The moment your workflow depends on local conventions, add your own project skill or slash command.
 
 ---
 
@@ -223,12 +205,12 @@ This one skill replaces 3-4 narrow debug skills while routing better — Claude 
 
 | Collection | Notes |
 |---|---|
-| [Anthropic Official Skills](https://github.com/anthropics/skills) | PDF, DOCX, PPTX, XLSX processing, Playwright browser automation |
-| [Claude Command Suite](https://github.com/qdhenry/Claude-Command-Suite) | 148+ commands, 54 agents. Large, structured, covers review/test/deploy |
-| [awesome-claude-code](https://github.com/hesreallyhim/awesome-claude-code) | Community hub aggregating skills, hooks, agents, CLAUDE.md templates |
-| [wshobson/commands](https://github.com/wshobson/commands) | Full-stack, security, data/ML, infrastructure collections |
+| [Anthropic Official Skills](https://github.com/anthropics/skills) | Official reference repo for skill structure, resources, and packaging patterns |
+| [Claude Command Suite](https://github.com/qdhenry/Claude-Command-Suite) | Large command/agent collection; useful for pattern mining, but curate aggressively |
+| [awesome-claude-code](https://github.com/hesreallyhim/awesome-claude-code) | Broad community index of commands, hooks, agents, plugins, and templates |
+| [wshobson/commands](https://github.com/wshobson/commands) | Good source of explicit slash-command patterns |
 | [awesome-claude-skills](https://github.com/travisvn/awesome-claude-skills) | Curated skill collection |
-| [claude-code-skill-factory](https://github.com/alirezarezvani/claude-code-skill-factory) | Toolkit for building and deploying skills at scale |
+| [claude-code-skill-factory](https://github.com/alirezarezvani/claude-code-skill-factory) | Useful if you want a repeatable internal skill-authoring workflow |
 
 ---
 
@@ -561,7 +543,7 @@ Creates a tight feedback loop: Claude writes code → tries to commit → tests 
 
 ### Hook Resources
 
-- [Official Hooks Docs](https://code.claude.com/docs/en/hooks) | [Hooks Guide](https://code.claude.com/docs/en/hooks-guide)
+- [Official Hooks Docs](https://docs.claude.com/en/docs/claude-code/hooks)
 - [claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) — Community hook collection
 - [DataCamp: Hooks Tutorial](https://www.datacamp.com/tutorial/claude-code-hooks) — Step-by-step walkthrough
 
@@ -989,7 +971,7 @@ claude --permission-mode plan
 claude --allowedTools "Bash(git:*) Read Grep Glob"
 
 # Block destructive commands
-claude --disallowed-tools "Bash(rm:*) Bash(sudo:*)"
+claude --disallowedTools "Bash(rm:*) Bash(sudo:*)"
 ```
 
 **Shift+Tab** in interactive mode cycles: Normal → Auto-Accept → Plan → Normal. Fastest way to switch modes mid-session.
@@ -1041,7 +1023,7 @@ Model Context Protocol servers extend Claude Code with external tool access. Add
 
 **Warning:** MCP servers bloat context with tool definitions. Enable Tool Search for lazy loading. Not all servers are production-ready — if one crashes, Claude loses access mid-session.
 
-Source: [MCPcat: Best MCP Servers for Claude Code](https://mcpcat.io/guides/best-mcp-servers-for-claude-code/) | [Claude Code Docs: MCP](https://code.claude.com/docs/en/mcp)
+Source: [MCPcat: Best MCP Servers for Claude Code](https://mcpcat.io/guides/best-mcp-servers-for-claude-code/) | [Claude Code Docs: MCP](https://docs.claude.com/en/docs/claude-code/mcp)
 
 ---
 
@@ -1053,19 +1035,22 @@ Source: [MCPcat: Best MCP Servers for Claude Code](https://mcpcat.io/guides/best
 3. Add the block-dangerous-commands PreToolUse hook
 
 ### Week 2 (Intermediate)
-4. Build 2-3 coarse skills (/review, /debug, /test) with explicit `description` fields
-5. Add auto-format hook (PostToolUse) — pick: per-edit OR per-commit, not both
-6. Learn `/compact` and Shift+Tab mode cycling
-7. Add a UserPromptSubmit hook for basic routing context
+4. Add 1-2 explicit slash commands in `.claude/commands/` for workflows you intentionally invoke
+5. Build 2-3 coarse skills in `.claude/skills/` with explicit `description` fields and supporting files
+6. Add auto-format hook (PostToolUse) — pick: per-edit OR per-commit, not both
+7. Learn `/compact` and Shift+Tab mode cycling
+8. Add a UserPromptSubmit hook for basic routing context
 
 ### Month 2 (Advanced)
-8. Build custom agents as specialists under your coarse skills
-9. Configure MCP servers for external integrations
-10. Set up CI/CD with headless mode (`-p` flag)
-11. Add a context-refresher UserPromptSubmit hook for long sessions
+9. Build custom agents as specialists under your coarse skills
+10. Configure MCP servers for external integrations
+11. Package reusable workflows as plugins if multiple repos need them
+12. Set up CI/CD with headless mode (`-p` flag)
+13. Add a context-refresher UserPromptSubmit hook for long sessions
 
 ### What Not to Do
 - Don't bloat CLAUDE.md past 80 lines — prune, don't add. Move detail to skills and `.claude/rules/`
+- Don't confuse skills with slash commands — use both, but for different reasons
 - Don't build 10 narrow skills — build 3-5 coarse skills and let them delegate to sub-agents
 - Don't stack 5+ synchronous hooks (180-second delays reported)
 - Don't build custom agents for tasks the built-ins handle fine
@@ -1077,7 +1062,10 @@ Source: [MCPcat: Best MCP Servers for Claude Code](https://mcpcat.io/guides/best
 ## Sources
 
 ### Official
-- [Claude Code Docs](https://code.claude.com/docs/en/overview) | [Skills](https://code.claude.com/docs/en/skills) | [Hooks](https://code.claude.com/docs/en/hooks) | [Hooks Guide](https://code.claude.com/docs/en/hooks-guide) | [Sub-Agents](https://code.claude.com/docs/en/sub-agents) | [CLI Reference](https://code.claude.com/docs/en/cli-reference) | [MCP](https://code.claude.com/docs/en/mcp) | [GitHub Actions](https://code.claude.com/docs/en/github-actions)
+- [Claude Code Overview](https://docs.claude.com/en/docs/claude-code/overview) | [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands) | [Hooks](https://docs.claude.com/en/docs/claude-code/hooks) | [Subagents](https://docs.claude.com/en/docs/claude-code/sub-agents) | [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference) | [MCP](https://docs.claude.com/en/docs/claude-code/mcp) | [GitHub Actions](https://docs.claude.com/en/docs/claude-code/github-actions)
+- [Agent Skills Overview](https://docs.claude.com/en/docs/agents-and-tools/claude-for-desktop-agent-sdk/agent-skills/overview) | [Using Skills in Claude](https://docs.claude.com/en/docs/agents-and-tools/claude-for-desktop-agent-sdk/agent-skills/use-skills) | [How to Create Custom Skills](https://docs.claude.com/en/docs/agents-and-tools/claude-for-desktop-agent-sdk/agent-skills/custom-skills) | [Manage Skills in Claude Code](https://docs.claude.com/en/docs/claude-code/tutorials/manage-skills)
+- [Plugins Overview](https://docs.claude.com/en/docs/claude-code/plugins/overview) | [Create Plugins](https://docs.claude.com/en/docs/claude-code/plugins/create-plugins) | [Plugin Marketplaces](https://docs.claude.com/en/docs/claude-code/plugins/marketplaces) | [Code Intelligence Plugins](https://docs.claude.com/en/docs/claude-code/plugins/code-intelligence-plugins)
+- [Release Notes](https://docs.claude.com/en/release-notes/overview)
 - [Anthropic: Building a C Compiler](https://www.anthropic.com/engineering/building-c-compiler)
 
 ### Community Collections
@@ -1097,4 +1085,4 @@ Source: [MCPcat: Best MCP Servers for Claude Code](https://mcpcat.io/guides/best
 
 ---
 
-*Compiled February 2026. Verify examples against [current docs](https://code.claude.com/docs/en/overview) — Claude Code evolves rapidly.*
+*Updated March 7, 2026. Verify examples against the current docs and release notes before treating any workflow as settled.*
