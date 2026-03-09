@@ -176,6 +176,42 @@ Official guidance and field experience line up on a few patterns:
 - **Version them in the file.** A short version-history section makes team changes understandable.
 - **Share broadly via plugins when needed.** Anthropic explicitly recommends plugins for reusable distribution beyond a single repo.
 
+### January 2026 Skill-Builder Guide
+
+Anthropic published a more detailed skill-authoring guide in **January 2026**. The official PDF is here, and there is also a community Markdown conversion that is easier to skim in-browser:
+
+- [The Complete Guide to Building Skills for Claude (official Anthropic PDF)](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf?hsLang=en)
+- [Skill Builder Guide (community Markdown conversion of Anthropic PDF)](https://gist.github.com/joyrexus/ff71917b4fc0a2cbc84974212da34a4a)
+- [Agent Skills docs](https://docs.claude.com/en/docs/agents-and-tools/agent-skills)
+
+High-signal takeaways from that guide:
+
+- **Validate routing with real prompts.** Anthropic recommends testing both "should trigger" and "should not trigger" examples instead of trusting the first description draft.
+- **Extract from successful conversations.** Their preferred workflow is to get a real task working in chat first, then turn the winning prompt/process into a skill.
+- **Keep `SKILL.md` lean.** The guide suggests keeping the core file under roughly **5,000 words** and moving supporting detail into `references/` or scripts.
+- **Use negative triggers when skills overlap.** A blunt "Do NOT use for..." clause is explicitly recommended when neighboring skills start colliding.
+- **Bundle deterministic checks.** If a step matters, ship a script or template for it rather than hoping the model remembers the instruction every time.
+- **Describe outcomes, not implementation trivia.** Users and models route better off task language ("review contracts", "triage CI failures") than off internal packaging details.
+
+### Making Skills Auto-Invoke Reliably
+
+If the goal is "Claude should reach for this on its own," the practical rules are:
+
+- **Treat `description` as the routing API.** Put the task, the natural trigger phrases, and the scope boundary in that one field.
+- **Mirror how humans ask.** Include the verbs, artifacts, file types, and domain terms users actually use in prompts.
+- **Be narrow enough to be distinct.** "Process PDFs" is weak; "review PDF contracts for legal-risk issues and clause extraction" is routable.
+- **Say what not to do.** Negative routing language helps prevent both false positives and skill collisions.
+- **Front-load the execution path.** Once loaded, Claude should immediately see the workflow, constraints, and which supporting files/scripts to read next.
+
+Example:
+
+```yaml
+---
+name: contract-review
+description: Review PDF contracts for legal-risk issues, clause extraction, and red-flag summaries. Use when the user asks to review contracts, extract clauses from agreements, or summarize legal terms. Do NOT use for general PDF extraction or invoice processing.
+---
+```
+
 ### When They Don't
 
 - **If you need explicit control** — use a slash command instead.
@@ -277,6 +313,8 @@ Spawned Claude instances with isolated context windows. The main agent delegates
 
 **Critical:** Sub-agents do NOT see your conversation history. They only receive the explicit prompt you give them. This is both the key strength (prevents context pollution, enables parallelism) and the key weakness (they need detailed, explicit context).
 
+Custom subagents can also be routed automatically. Anthropic's docs use the same basic advice as skills: write a tight description, make the specialization obvious, and let the main agent invoke them when the task matches that niche rather than telling Claude to "use agent X" every time.
+
 ### When They Shine
 
 Sub-agents have a clear sweet spot: **parallel, independent work on separate files/domains.** The golden rule: parallel only works when agents touch different files.
@@ -302,6 +340,13 @@ Anthropic's engineering blog describes using [16 Claude instances simultaneously
 ### Practical Heuristic
 
 If the task is "research or review" rather than "decide or build," use a sub-agent. If it needs unified reasoning or tight integration, keep it in the main agent.
+
+If you want automatic delegation rather than manual prompting, the best pattern is:
+
+- Give each agent a **single sharp specialty** ("React accessibility review", "Postgres query optimization", "log triage").
+- Put the **trigger language in the description**, not buried deep in instructions.
+- Keep tool access and scope aligned with that specialty so the agent feels safe to call.
+- Avoid overlapping agents that all sound like "general engineering help" or Claude will route inconsistently.
 
 ### Patterns
 
@@ -508,7 +553,7 @@ Don't front-load everything into CLAUDE.md. Don't build 10 narrow skills. Don't 
 
 ### Official Documentation
 - [Claude Code Overview](https://docs.claude.com/en/docs/claude-code/overview) | [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands) | [Hooks](https://docs.claude.com/en/docs/claude-code/hooks) | [Subagents](https://docs.claude.com/en/docs/claude-code/sub-agents) | [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference) | [MCP](https://docs.claude.com/en/docs/claude-code/mcp)
-- [Agent Skills Overview](https://docs.claude.com/en/docs/agents-and-tools/claude-for-desktop-agent-sdk/agent-skills/overview) | [Using Skills in Claude](https://docs.claude.com/en/docs/agents-and-tools/claude-for-desktop-agent-sdk/agent-skills/use-skills) | [How to Create Custom Skills](https://docs.claude.com/en/docs/agents-and-tools/claude-for-desktop-agent-sdk/agent-skills/custom-skills) | [Manage Skills in Claude Code](https://docs.claude.com/en/docs/claude-code/tutorials/manage-skills)
+- [Agent Skills docs](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) | [Manage Skills in Claude Code](https://docs.claude.com/en/docs/claude-code/tutorials/manage-skills) | [The Complete Guide to Building Skills for Claude (official Anthropic PDF)](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf?hsLang=en) | [Skill Builder Guide (community Markdown conversion of Anthropic PDF)](https://gist.github.com/joyrexus/ff71917b4fc0a2cbc84974212da34a4a)
 - [Plugins Overview](https://docs.claude.com/en/docs/claude-code/plugins/overview) | [Create Plugins](https://docs.claude.com/en/docs/claude-code/plugins/create-plugins) | [Plugin Marketplaces](https://docs.claude.com/en/docs/claude-code/plugins/marketplaces) | [Code Intelligence Plugins](https://docs.claude.com/en/docs/claude-code/plugins/code-intelligence-plugins)
 - [Release Notes](https://docs.claude.com/en/release-notes/overview)
 
