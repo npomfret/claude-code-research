@@ -264,11 +264,21 @@ Hooks are for **certainty, not intelligence.** Use them when behavior must be gu
 
 **The "Context Refresher":** A UserPromptSubmit hook that [re-injects important context every N prompts](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc). SessionStart context gets pushed back and "forgotten" in long sessions — this pattern solves that. Whatever a UserPromptSubmit hook writes to stdout gets added to Claude's context alongside your prompt. Use this to inject project state, sprint priorities, or routing hints that influence which skills/agents Claude reaches for.
 
+**A better routing pattern than prompt-time shell heuristics:** If your goal is "Claude should choose the right workflow on its own," do **not** build a fragile `UserPromptSubmit` classifier in Bash that pattern-matches user prompts and tells Claude what workflow to use. That pushes semantic routing into the least reliable layer. A stronger pattern is:
+
+- keep workflow routing in **skill descriptions** and **sub-agent descriptions**
+- keep the always-on memory layer short and explicit about routing precedence
+- use hooks only for **hard policy** and **lightweight session context**
+- if you want a reminder, prefer a single **SessionStart** routing summary over per-prompt classification
+
+The practical rule is simple: **hooks should enforce, not interpret.** Let Claude do semantic routing natively through skills and agents; use hooks for blocking dangerous actions, formatting, notifications, or injecting a short session-level reminder.
+
 ### When They Don't
 
 - **Auto-formatting on every edit creates context noise.** When your formatter changes files, Claude gets a system reminder about those changes. Aggressive formatting floods the context window. **Community wisdom: format on commit, not on every edit.**
 - **Synchronous hooks block execution.** One team reported 180 seconds of delay per interaction from stacking linter + formatter + git logger + metrics hooks. Use `async: true` for anything that doesn't need to block.
 - **Don't use hooks for complex reasoning.** Hooks should be fast, deterministic checks.
+- **Don't turn `UserPromptSubmit` into a workflow router by keyword-matching prompts.** That is brittle, adds latency on every prompt, and can fight Claude's native skill/sub-agent routing. If routing is weak, fix the skill and agent `description` fields first.
 - **The "Silent Assassin" anti-pattern:** Hooks that modify code (like auto-formatters) without telling Claude. Claude gets confused why the file changed. Always let Claude know via tool output if a hook changed something.
 - **The "Backseat Driver" anti-pattern:** Interrupting Claude while it's writing code (linting every file save) breaks its chain of thought and wastes tokens. Validate *after* the work is done.
 
