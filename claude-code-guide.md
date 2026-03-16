@@ -1,590 +1,646 @@
-# Claude Code: The Practical Guide
+# Claude Code: Current Practical Guide
 
-Claude Code is Anthropic's terminal-based agentic coding tool. It reads your codebase, edits files, runs commands, and iterates — less like autocomplete and more like a tireless but amnesia-prone junior developer who needs clear direction and guardrails. Available in the terminal, VS Code, JetBrains, as a desktop app, and in-browser.
+Claude Code changes quickly. This guide intentionally prioritizes Anthropic's current documentation, official release notes, and the official `anthropics/claude-code` repo over community lore. Where the product surface is still evolving, the guidance below favors stable patterns that materially improve results.
 
-This guide covers **when and how to use** each extensibility feature, based on real developer experience and current official docs. The biggest shift since late 2025: Claude Code now draws a clean line between explicit **slash commands** and model-invoked **Agent Skills**.
+Last verified: **March 16, 2026**
 
 ---
 
-## Quick Decision Framework
+## What Actually Gets Better Results
 
-Before diving in, orient yourself. Each tool serves a distinct purpose — confusion comes from using one where another belongs.
+If your goal is to get the best work out of Claude Code, the highest-leverage improvements are not obscure flags. They are:
 
-| You need... | Use | Not |
+1. **Give Claude the right context, not more context.**
+2. **Keep project memory concise and current.**
+3. **Use the right execution layer for the job: memory, skill, subagent, hook, MCP, or CLI.**
+4. **Force verification with tests, checks, and explicit acceptance criteria.**
+5. **Manage context aggressively in long sessions.**
+
+Anthropic's own best-practices docs repeatedly emphasize a few operational habits:
+
+- be specific about the task, constraints, and success criteria
+- attach the exact files, images, or URLs Claude needs
+- break large work into steps or use `/plan`
+- create concise project memory with `/init`
+- use hooks for deterministic guardrails
+- use skills and subagents to keep specialized knowledge off the always-on path
+- use `/compact`, `/clear`, `/btw`, `/rewind`, and resume flows instead of dragging one session forever
+
+That is the core playbook. Everything else is an optimization on top.
+
+---
+
+## The Current Mental Model
+
+Use this decision table when choosing a Claude Code feature.
+
+| You need... | Use | Why |
 |---|---|---|
-| Behavior that must happen every time, no exceptions | **Hook** | CLAUDE.md (advisory, can be ignored) |
-| A repeatable workflow Claude should discover automatically | **Agent Skill** | Slash command (explicit only) |
-| An explicit shortcut like `/review-pr` or `/commit` | **Custom slash command** | Agent Skill (not directly invoked) |
-| Context Claude should always have | **CLAUDE.md** | Skill (on-demand only) |
-| Parallel work across many files/domains | **Sub-Agent** | Main thread (context will overflow) |
-| Blocking dangerous commands | **Hook** (PreToolUse) | CLAUDE.md (unenforceable) |
-| A quick one-off task | **Inline prompt** | Skill/Hook (overhead for one-shot work) |
-| Notification when Claude finishes | **Hook** (Stop) | Nothing else can trigger on completion |
-| External tool integration (Jira, DB, search) | **MCP Server** | Not a skill/command problem |
-| Claude in CI/CD | **CLI with `-p`** | Interactive mode |
-| Claude to plan before acting | **`--permission-mode plan`** | — |
+| Always-on project instructions | `CLAUDE.md` and `.claude/rules/` | Persistent memory layer |
+| A reusable workflow Claude can invoke or you can call by name | **Skill** | Skills now cover both model-invoked and user-invoked custom workflows |
+| A specialist with isolated context | **Subagent** | Better focus, lower context pollution |
+| Deterministic enforcement or automation | **Hook** | Guardrails and lifecycle automation |
+| External tools or live data | **MCP server** | Integrates APIs, docs, systems |
+| Share setup across teams/repos | **Plugin** | Packages skills, agents, hooks, MCP, commands, settings |
+| Non-interactive automation | `claude -p` | CI, scripts, batch workflows |
 
-**The mental model:** Slash commands are **shortcuts**. Skills are **capabilities**. Sub-Agents are **contractors**. Hooks are **guardrails**. CLAUDE.md is **standing memory**.
+The main product change to internalize:
 
-### The Layered Architecture
+- **Built-in slash commands** still exist.
+- **Custom commands are now implemented through skills.**
+- A skill can be **model-invocable**, **user-invocable**, or both.
 
-The most successful setups keep the always-on layer thin and push detail into on-demand layers:
-
-```
-Always-on (small):
-  CLAUDE.md          → Routing table + non-negotiables (60-80 lines)
-  Skill metadata     → Names + descriptions used for discovery
-  Command metadata   → Names + descriptions for SlashCommand routing
-  Hooks              → Guaranteed automation (format, lint, notify, block)
-
-On-demand (loaded when matched):
-  .claude/skills/    → Multi-file capabilities (SKILL.md + resources)
-  .claude/commands/  → Explicit slash-command prompts
-  .claude/agents/    → Specialist delegation (own context window)
-  .claude/rules/     → Topic-specific context (loaded by path/relevance)
-  MCP Servers        → External tools (lazy-loaded via Tool Search)
-  Plugins            → Distribute commands, skills, hooks, agents, MCP
-
-Session-level:
-  CLI flags          → Model, permissions, output format
-```
-
-The guiding principle from Anthropic's context engineering research: **["Find the smallest set of high-signal tokens that maximize the likelihood of your desired outcome."](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)**
+That means the old "custom slash commands vs skills" framing is now out of date.
 
 ---
 
-## Start Here: CLAUDE.md
+## Start With Memory
 
-CLAUDE.md is not a "feature" like the others, but **it's the single most impactful configuration** for getting good results. It's a Markdown file at your project root that Claude reads at the start of every conversation.
+`CLAUDE.md` is still the highest-leverage customization point, but the fine details matter.
 
-### The Instruction Budget
+### What Claude Code Loads
 
-Claude's system prompt already contains ~50 instructions. Research shows frontier LLMs follow approximately 150-200 instructions with reasonable consistency, with [degradation as count increases](https://www.humanlayer.dev/blog/writing-a-good-claude-md). Your CLAUDE.md is competing for attention in a limited budget.
+Claude Code supports multiple memory layers:
 
-**Target: 60-80 lines.** Above ~150 lines, multiple teams report Claude ignoring instructions outright ([#6120](https://github.com/anthropics/claude-code/issues/6120), [#15443](https://github.com/anthropics/claude-code/issues/15443), [#19471](https://github.com/anthropics/claude-code/issues/19471)). [Arize found](https://arize.com/blog/claude-md-best-practices-learned-from-optimizing-claude-code-with-prompt-learning/) that optimizing system prompt content alone yielded 5%+ gains in general coding and +11% for repo-specific work. HumanLayer's own CLAUDE.md is [under 60 lines](https://github.com/humanlayer/humanlayer/blob/main/CLAUDE.md).
+- project memory in `./CLAUDE.md`
+- user memory in `~/.claude/CLAUDE.md`
+- enterprise or managed memory, if configured
+- imported memory files
+- additional memory directories via environment configuration
+- auto-generated memory
+- on-demand memory in `.claude/rules/`
 
-For each line, ask: **"Would removing this cause Claude to make mistakes?"** If not, cut it.
+Anthropic's current memory docs describe `CLAUDE.md` as the place for repo-specific standards, commands, and workflows, while `.claude/rules/` is for more targeted rules that should load on demand.
 
-### What It Is (and Isn't)
+### Keep Memory Short
 
-**It guides behavior but doesn't enforce it.** Claude can and does ignore CLAUDE.md instructions, especially as the context fills. If something MUST happen, use a hook. One developer's CLAUDE.md explicitly prohibited hardcoding API keys — [Claude did it anyway, costing $30,000](https://paddo.dev/blog/claude-code-hooks-guardrails/).
+Anthropic's current guidance is explicit:
 
-**Think of CLAUDE.md as a routing table**, not a manual. It should tell Claude: what the project is, how to build/test it, where things live, and what to never do. Everything else should live in skills (on-demand), hooks (enforced), or `.claude/rules/` (topic-specific).
+- **keep each `CLAUDE.md` under roughly 200 lines**
+- use **imports** to split large memory into smaller files
+- use **child `CLAUDE.md` files** or `.claude/rules/` for more local context
+- keep guidance **specific, actionable, and repo-specific**
 
-**What belongs here:**
-- Build/test commands (`npm test`, `cargo build`)
-- Code style conventions that differ from defaults
-- Architecture overview (where files go, module boundaries)
-- Hard "never do X" rules (never modify `src/generated/`, never commit `.env`)
-- Routing hints: which skills/agents to use for what
+This is the right way to think about instruction budget:
 
-**What doesn't:**
-- Anything needing guaranteed enforcement (use hooks)
-- Task-specific workflows (use skills — they load on demand, ~100 tokens for metadata)
-- Generic programming advice Claude already knows
-- Code style rules a linter can enforce — ["never send an LLM to do a linter's job"](https://www.humanlayer.dev/blog/writing-a-good-claude-md)
-- Personality instructions ("be a senior engineer") — wastes tokens, changes nothing
+- `CLAUDE.md` should not try to teach programming
+- it should tell Claude how *this repository* works
+- if something is long, niche, or only occasionally relevant, move it off the always-on path
 
-### Progressive Disclosure
+### What Belongs in `CLAUDE.md`
 
-For projects that outgrow 80 lines, use progressive disclosure instead of a massive CLAUDE.md:
+- build, test, lint, and formatting commands
+- where major code lives
+- repo-specific architecture constraints
+- "never touch these files" rules
+- local workflow requirements that matter on almost every task
+- links or imports to more detailed memory only when needed
 
+### What Does Not Belong There
+
+- generic coding advice
+- long style guides already enforced by tools
+- rare one-off workflows
+- deep domain references better stored in a skill or rule file
+- anything that must be enforced mechanically rather than requested
+
+### Fine Details That Matter
+
+- Child `CLAUDE.md` files load when Claude enters that directory subtree.
+- `.claude/rules/` exists specifically to reduce always-on prompt bloat.
+- Auto-memory exists, but you should still treat hand-written memory as the authoritative layer.
+- You can exclude imported memory from child directories with `claudeMdExcludes` if a local subtree should not inherit it.
+
+### Good Memory Pattern
+
+Keep the root file as a routing layer:
+
+```md
+# Project Memory
+
+## Commands
+- Test: `pnpm test`
+- Lint: `pnpm lint`
+- Typecheck: `pnpm typecheck`
+
+## Architecture
+- API handlers live in `apps/api/src/routes`
+- Shared domain types live in `packages/domain`
+
+## Hard Rules
+- Do not edit generated files in `src/generated/`
+- Run targeted tests for touched packages before finishing
+
+## More Context
+- Frontend conventions: import `./.claude/rules/frontend.md`
+- Database workflow: import `./.claude/rules/db.md`
 ```
-CLAUDE.md              → Routing table + non-negotiables (60-80 lines)
-.claude/rules/         → Topic-specific context
-.claude/commands/      → Explicit slash-command workflows
-.claude/skills/        → Model-invoked capabilities with resources
-.claude/agents/        → Specialist delegation
-Hooks                  → Guaranteed enforcement
-```
 
-Each layer loads only when needed. [Skills load at three levels](https://alexop.dev/posts/stop-bloating-your-claude-md-progressive-disclosure-ai-coding-tools/): metadata (~100 tokens always), instructions (<5K tokens when matched), resources (only during execution). This keeps the always-on context budget small while giving Claude access to deep knowledge on demand.
-
-### The Three-Attempt Reality
-
-From a [staff engineer's 6-week journey](https://www.sanity.io/blog/first-attempt-will-be-95-garbage):
-- **First attempt:** 95% garbage. But you learn what Claude misunderstands.
-- **Second attempt:** 50% garbage. You've refined CLAUDE.md based on failures.
-- **Third attempt:** Finally workable. Your project documentation is now calibrated.
-
-CLAUDE.md is an iterative document. You refine it based on where Claude fails. Even [Anthropic's own Claude Code team](https://paddo.dev/blog/how-boris-uses-claude-code/) contributes to their CLAUDE.md multiple times a week — and ruthlessly prunes it.
+That gives Claude a small, high-signal map instead of an instruction swamp.
 
 ---
 
-## Agent Skills
+## Skills: The Current Model
 
-### What They Are
+Skills are now the main mechanism for reusable custom workflows in Claude Code.
 
-Agent Skills are **model-invoked capabilities** stored as directories containing a `SKILL.md` file plus optional scripts, templates, and reference docs. In Claude Code they live in `.claude/skills/<skill-name>/SKILL.md` for project skills or `~/.claude/skills/<skill-name>/SKILL.md` for personal skills. Installed plugins can bundle skills too.
+### What Changed
 
-This is a different feature from custom slash commands:
+Current docs state that:
 
-- **Slash commands** are explicit and live in `.claude/commands/*.md`
-- **Skills** are automatic and live in `.claude/skills/<name>/SKILL.md`
-- Both can coexist, and plugins can ship both
+- **custom slash commands have been merged into the skill system**
+- skills can be **model-invocable**, **user-invocable**, or both
+- built-in slash commands remain separate
+- existing `.claude/commands/` content still works, but **skills take precedence** over commands with the same name
 
-Anthropic launched Agent Skills on **October 16, 2025**. In Claude Code, only **custom** skills are supported; Anthropic's prebuilt document skills (PDF, Word, Excel, PowerPoint) are for Claude.ai and the API rather than local Claude Code sessions.
+If you want a reusable workflow in 2026 Claude Code, start with a skill.
 
-### The Routing Mechanism
+### Where Skills Live
 
-Claude discovers skills from three sources:
+- project skills: `.claude/skills/`
+- personal skills: `~/.claude/skills/`
+- nested directories are supported and auto-discovered
+- plugins can also provide skills
 
-- `~/.claude/skills/`
-- `.claude/skills/`
-- Installed plugin `skills/` directories
+### Invocation Modes
 
-Each skill needs YAML frontmatter in `SKILL.md` with at least:
+A skill can be:
 
-```yaml
----
-name: code-review
-description: Review code for correctness, security, performance, and test gaps. Use when reviewing diffs, PRs, or recent code changes.
----
-```
+- **model-invocable**: Claude chooses it automatically when relevant
+- **user-invocable**: you run it directly, typically as `/<skill-name>`
+- **both**: often the best default
 
-The `description` is the routing surface. Claude decides whether to load the skill based on that description and your request. The practical implication is simple: **be specific about both what the skill does and when Claude should use it**.
+Important frontmatter details from the current docs:
 
-Unlike slash commands, you do not type a skill name to trigger it. You test a skill by asking for the task naturally and seeing whether Claude selects it.
+- `description` is used for automatic invocation
+- `user-invocable: true` exposes it for direct use
+- `disable-model-invocation: true` removes it from automatic routing
+- `allowed-tools` constrains what the skill can use
+- `model` lets you pin a model for that skill
+- `context: fork` lets a skill run in a fresh context, optionally with an `agent`
 
 ### Why This Matters
 
-Skills are the right abstraction when one capability needs more than a single prompt file:
+The best custom workflows usually need one of these:
 
-- A code-review capability with checklists, shell helpers, and reference docs
-- A release skill with rollout instructions, runbooks, and verification scripts
-- A data-migration skill with templates and project-specific gotchas
-- A PDF/domain-processing skill with scripts and supporting documentation
+- a structured checklist
+- reference docs
+- scripts or templates
+- strict tool restrictions
+- a model override
+- a clean context boundary
 
-### When They Shine
+That is exactly what skills are built for now.
 
-Skills are best when you need **organized, reusable expertise** rather than a snippet:
+### Best Practices For Reliable Skill Routing
 
-- **Multi-file workflows** — instructions plus scripts plus references
-- **Team-standard capabilities** — shared via git or plugins
-- **Automatic discovery** — Claude should reach for the workflow on its own
-- **Long-lived domain knowledge** — runbooks, policies, templates, style guides
+If you want Claude to auto-invoke a skill reliably:
 
-This is the strongest new Claude Code feature if you want a repo to "teach" Claude how your team works without bloating `CLAUDE.md`.
-
-### Best Practices
-
-Official guidance and field experience line up on a few patterns:
-
-- **Keep them focused.** One capability per skill beats a giant "everything" skill.
-- **Write trigger-rich descriptions.** Mention file types, task names, and situations.
-- **Package the real artifacts.** Put checklists, templates, scripts, and examples alongside `SKILL.md`.
-- **Version them in the file.** A short version-history section makes team changes understandable.
-- **Share broadly via plugins when needed.** Anthropic explicitly recommends plugins for reusable distribution beyond a single repo.
-
-### January 2026 Skill-Builder Guide
-
-Anthropic published a more detailed skill-authoring guide in **January 2026**. The official PDF is here, and there is also a community Markdown conversion that is easier to skim in-browser:
-
-- [The Complete Guide to Building Skills for Claude (official Anthropic PDF)](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf?hsLang=en)
-- [Skill Builder Guide (community Markdown conversion of Anthropic PDF)](https://gist.github.com/joyrexus/ff71917b4fc0a2cbc84974212da34a4a)
-- [Agent Skills docs](https://docs.claude.com/en/docs/agents-and-tools/agent-skills)
-
-High-signal takeaways from that guide:
-
-- **Validate routing with real prompts.** Anthropic recommends testing both "should trigger" and "should not trigger" examples instead of trusting the first description draft.
-- **Extract from successful conversations.** Their preferred workflow is to get a real task working in chat first, then turn the winning prompt/process into a skill.
-- **Keep `SKILL.md` lean.** The guide suggests keeping the core file under roughly **5,000 words** and moving supporting detail into `references/` or scripts.
-- **Use negative triggers when skills overlap.** A blunt "Do NOT use for..." clause is explicitly recommended when neighboring skills start colliding.
-- **Bundle deterministic checks.** If a step matters, ship a script or template for it rather than hoping the model remembers the instruction every time.
-- **Describe outcomes, not implementation trivia.** Users and models route better off task language ("review contracts", "triage CI failures") than off internal packaging details.
-
-### Making Skills Auto-Invoke Reliably
-
-If the goal is "Claude should reach for this on its own," the practical rules are:
-
-- **Treat `description` as the routing API.** Put the task, the natural trigger phrases, and the scope boundary in that one field.
-- **Mirror how humans ask.** Include the verbs, artifacts, file types, and domain terms users actually use in prompts.
-- **Be narrow enough to be distinct.** "Process PDFs" is weak; "review PDF contracts for legal-risk issues and clause extraction" is routable.
-- **Say what not to do.** Negative routing language helps prevent both false positives and skill collisions.
-- **Front-load the execution path.** Once loaded, Claude should immediately see the workflow, constraints, and which supporting files/scripts to read next.
+- write a concrete `description` that names the task, artifacts, and triggers
+- include explicit "use when..." language
+- include "do not use for..." when nearby skills overlap
+- keep the main `SKILL.md` focused and move bulky detail into references or scripts
+- prefer one strong skill per recurring workflow instead of many tiny overlapping ones
 
 Example:
 
 ```yaml
 ---
-name: contract-review
-description: Review PDF contracts for legal-risk issues, clause extraction, and red-flag summaries. Use when the user asks to review contracts, extract clauses from agreements, or summarize legal terms. Do NOT use for general PDF extraction or invoice processing.
+description: Investigate failing tests, CI regressions, or runtime errors. Use when the user asks to debug a failure, triage a flaky test, or explain why a command or suite is breaking. Do not use for greenfield feature work.
+user-invocable: true
+allowed-tools: Read,Grep,Glob,Bash(npm test:*),Bash(pnpm test:*)
 ---
 ```
 
-### When They Don't
+### Fine Details Worth Knowing
 
-- **If you need explicit control** — use a slash command instead.
-- **If the workflow fits in one markdown file** — a slash command is lighter.
-- **If the instruction should always be in force** — put it in `CLAUDE.md` or a hook.
-- **If the skill is too vague** — Claude simply won't reach for it reliably.
+- `!` commands inside a skill invoke shell commands from the skill body.
+- `$ARGUMENTS` is available for user-supplied arguments.
+- Skills can reference hooks and subagents.
+- Setting `disable-model-invocation: true` also means the description is not included for routing.
+- If a skill name collides with a built-in command, the slash form resolves to the built-in. Anthropic's docs recommend a prefix such as `sc-` for direct-invoke custom skills.
 
-### Operational Reality
+### Practical Advice
 
-- Skills in Claude Code are **filesystem-based**. Update the files, then restart Claude Code to reload them.
-- Skills do **not** sync automatically across Claude products. Claude.ai uploads, API skills, and local Claude Code skills are separate deployment surfaces.
-- Plugin skills are increasingly the cleanest team distribution model because they bundle versioning, marketplaces, and optional commands/hooks around the same capability.
+Use skills for:
 
-### A Good Default
+- code review checklists
+- debugging and triage flows
+- release verification
+- migration runbooks
+- repetitive repo-specific changes
 
-Start with 2-3 coarse skills that map to real recurring work:
+Do not use a skill for something that should be:
 
-| Skill | Purpose |
-|---|---|
-| `code-review` | Review diffs/PRs using your team's checklist and helper scripts |
-| `debug-workflow` | Structured investigation for failing tests, runtime bugs, and regressions |
-| `release-checks` | Release/runbook validation with project-specific scripts |
-
-If you also want explicit entry points, pair each skill with a thin slash command that tells Claude to use it.
+- always-on memory
+- a hard guardrail
+- just a single one-off prompt
 
 ---
 
-## Hooks
+## Subagents
+
+Subagents are still one of the best ways to improve output quality on complex work because they reduce context collision.
 
 ### What They Are
 
-Shell commands (or LLM prompts, or sub-agent invocations) that fire automatically at lifecycle events. They are the **hard guarantee** layer — while CLAUDE.md says "please format your code," a hook *forces* it every time.
+Subagents are specialized Claude instances with their own instructions, tools, permissions, and context. Claude Code includes built-in subagents such as `Explore`, `Plan`, and a general-purpose agent, and you can define custom subagents in `.claude/agents/` or `~/.claude/agents/`.
 
-13 lifecycle events including `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `Notification`, `SubagentStop`. Hooks communicate via stdin (JSON in), stdout (JSON decisions out), and exit codes.
+Current docs highlight a few capabilities that matter in practice:
 
-### When They Shine
+- subagents have separate context windows
+- they can have their own `allowed-tools`, `model`, and `permission-mode`
+- they can preload relevant skills
+- a resumed subagent keeps its prior context
+- the current SDK also exposes `Task()` for custom agent orchestration
 
-Hooks are for **certainty, not intelligence.** Use them when behavior must be guaranteed:
+### When Subagents Improve Results
 
-- **Auto-formatting after edits** — the most popular hook. PostToolUse on `Write|Edit` running Prettier/Black/gofmt.
-- **Security guardrails** — PreToolUse blocking `rm -rf`, `sudo`, `chmod 777`, or changes to `.env`.
-- **Notifications** — Stop hooks notifying you when Claude finishes (`say 'Claude is done'` on macOS is the iconic example).
-- **Branch protection** — preventing changes on `main`/`master`.
-- **Headless safety** — when running with `--dangerously-skip-permissions`, hooks are your only guardrails.
-- **Input modification** (since v2.0.10) — PreToolUse hooks can rewrite tool parameters (intercept `rm -rf` and change it to `rm -i`).
+Use subagents when the task benefits from isolation:
 
-**The "Gatekeeper" pattern:** Run `npm test` before committing. If it fails, Claude must fix it. This creates a tight feedback loop where Claude self-corrects without your intervention.
+- broad codebase research
+- independent reviews from different perspectives
+- planning before implementation
+- parallel investigation of separate subsystems
+- specialist flows with distinct tool permissions
 
-**The "Context Injector":** A hook running `git status` or `ls -R` at session start, ensuring Claude always knows the ground truth state of the repo.
+### When They Usually Hurt
 
-**The "Context Refresher":** A UserPromptSubmit hook that [re-injects important context every N prompts](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc). SessionStart context gets pushed back and "forgotten" in long sessions — this pattern solves that. Whatever a UserPromptSubmit hook writes to stdout gets added to Claude's context alongside your prompt. Use this to inject project state, sprint priorities, or routing hints that influence which skills/agents Claude reaches for.
+Avoid unnecessary delegation when:
 
-**A better routing pattern than prompt-time shell heuristics:** If your goal is "Claude should choose the right workflow on its own," do **not** build a fragile `UserPromptSubmit` classifier in Bash that pattern-matches user prompts and tells Claude what workflow to use. That pushes semantic routing into the least reliable layer. A stronger pattern is:
+- one file or one function is changing
+- the work depends on tight shared reasoning across the same files
+- the overhead of explaining context is larger than the task itself
 
-- keep workflow routing in **skill descriptions** and **sub-agent descriptions**
-- keep the always-on memory layer short and explicit about routing precedence
-- use hooks only for **hard policy** and **lightweight session context**
-- if you want a reminder, prefer a single **SessionStart** routing summary over per-prompt classification
+### Fine Details That Matter
 
-The practical rule is simple: **hooks should enforce, not interpret.** Let Claude do semantic routing natively through skills and agents; use hooks for blocking dangerous actions, formatting, notifications, or injecting a short session-level reminder.
+- A subagent only works with the context you give it and the tools it is allowed to use.
+- A good subagent description is as important as a good skill description.
+- If you want predictable delegation, make the specialization narrow and obvious.
+- For cost and speed control, it is often worth keeping the main session on a stronger model and simpler research/review agents on a cheaper one.
 
-### When They Don't
+### Good Uses
 
-- **Auto-formatting on every edit creates context noise.** When your formatter changes files, Claude gets a system reminder about those changes. Aggressive formatting floods the context window. **Community wisdom: format on commit, not on every edit.**
-- **Synchronous hooks block execution.** One team reported 180 seconds of delay per interaction from stacking linter + formatter + git logger + metrics hooks. Use `async: true` for anything that doesn't need to block.
-- **Don't use hooks for complex reasoning.** Hooks should be fast, deterministic checks.
-- **Don't turn `UserPromptSubmit` into a workflow router by keyword-matching prompts.** That is brittle, adds latency on every prompt, and can fight Claude's native skill/sub-agent routing. If routing is weak, fix the skill and agent `description` fields first.
-- **The "Silent Assassin" anti-pattern:** Hooks that modify code (like auto-formatters) without telling Claude. Claude gets confused why the file changed. Always let Claude know via tool output if a hook changed something.
-- **The "Backseat Driver" anti-pattern:** Interrupting Claude while it's writing code (linting every file save) breaks its chain of thought and wastes tokens. Validate *after* the work is done.
+- `Explore`: find all call sites, data flow, or migration scope
+- `Plan`: generate a plan you can approve before edits
+- custom reviewer agents: security, performance, accessibility, schema review
 
-### Critical Bugs and Gotchas
-
-1. **PreToolUse exit codes can be IGNORED** ([#21988](https://github.com/anthropics/claude-code/issues/21988)) — operations proceed despite non-zero exit codes. Don't rely solely on hooks for security-critical blocking without verifying this is fixed in your version.
-2. **Progressive duplication bug** ([#3523](https://github.com/anthropics/claude-code/issues/3523)) — hooks multiply during long sessions, causing 10+ simultaneous ESLint processes. Severe CPU/memory degradation.
-3. **Matchers are case-sensitive** — `"bash"` will NOT match the `Bash` tool.
-4. **All matching hooks run in parallel** — no ordering or dependency definition. Sequential execution is a [feature request](https://github.com/anthropics/claude-code/issues/21533).
-5. **Home directory quirk** — user-level Stop hooks don't fire from `~` ([#15629](https://github.com/anthropics/claude-code/issues/15629)).
-
-### Adoption Reality
-
-Despite being the most powerful extensibility mechanism, one survey noted **"approximately nobody is using them."** They require shell scripting knowledge, configuration is JSON in settings files (less discoverable than dropping a Markdown file), and the bugs above erode trust. Those who do use them are enthusiastic.
-
-### Popular Examples
-
-**Notification:**
-```json
-{"hooks": {"Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "say 'Claude has finished working'"}]}]}}
-```
-
-**Auto-format:**
-```json
-{"hooks": {"PostToolUse": [{"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "npx prettier --write $CLAUDE_FILE_PATHS"}]}]}}
-```
-
-**Block destructive commands:** A PreToolUse hook on `Bash` that parses stdin JSON, checks for `rm -rf /`, `sudo`, `chmod 777`, and exits with code 2 to block.
-
-**LLM safety check:**
-```json
-{"matcher": "Bash", "hooks": [{"type": "prompt", "prompt": "Does this command look safe to execute? $ARGUMENTS"}]}
-```
+Anthropic's best-practices doc also recommends running multiple Claude Code sessions or worktrees in parallel for larger efforts. Subagents are one part of that broader pattern.
 
 ---
 
-## Sub-Agents (The Task Tool)
+## Hooks: Use Them For Guarantees
 
-### What They Are
+Hooks are the right tool when behavior must be automated or enforced.
 
-Spawned Claude instances with isolated context windows. The main agent delegates work via the `Task` tool; sub-agents execute independently with their own tool access. Up to 10 concurrent.
+### What They Do
 
-**Critical:** Sub-agents do NOT see your conversation history. They only receive the explicit prompt you give them. This is both the key strength (prevents context pollution, enables parallelism) and the key weakness (they need detailed, explicit context).
+Hooks can run:
 
-Custom subagents can also be routed automatically. Anthropic's docs use the same basic advice as skills: write a tight description, make the specialization obvious, and let the main agent invoke them when the task matches that niche rather than telling Claude to "use agent X" every time.
+- shell commands
+- HTTP endpoints
+- LLM-based checks
 
-### When They Shine
+They trigger on Claude Code lifecycle events and can inspect tool inputs, block actions, modify behavior, or attach context.
 
-Sub-agents have a clear sweet spot: **parallel, independent work on separate files/domains.** The golden rule: parallel only works when agents touch different files.
+### Current Hook Surface
 
-- **Large-scale codebase research** — "Find all usages of deprecated function X across 200 files"
-- **Fan-out analysis** — security review + performance review + accessibility review, each in parallel
-- **Documentation generation** — primary agent lists functions, sub-agents document each, final agent assembles
-- **Multi-module refactoring** — frontend agent handles React components while backend agent manages API routes
+Anthropic's current hooks docs list many events, including:
 
-Use agents for *scope* — when you don't know the full scope of the work. Let the Explore agent build the mental map so you don't have to context-dump manually.
+- `SessionStart`
+- `UserPromptSubmit`
+- `PreToolUse`
+- `PermissionRequest`
+- `PostToolUse`
+- `PostToolUseFailure`
+- `Notification`
+- `SubagentStart`
+- `SubagentStop`
+- `Stop`
+- `InstructionsLoaded`
+- `ConfigChange`
+- `PreCompact`
+- `PostCompact`
+- `SessionEnd`
 
-Anthropic's engineering blog describes using [16 Claude instances simultaneously to build a C compiler](https://www.anthropic.com/engineering/building-c-compiler), with each agent taking a "lock" on a task via text files in a `current_tasks/` directory.
+The hook surface is broader now than older guides suggest, so avoid hardcoding an old event count.
 
-### When They Don't
+### Best Uses
 
-- **Over-parallelizing wastes tokens.** "Max out at three or four specialized agents. More than that decreases productivity rather than increasing it."
-- **Explore agent summaries can be lossy.** One power user [explicitly prefers having Opus read files itself](https://sankalp.bearblog.dev/my-experience-with-claude-code-20-and-how-to-get-better-at-using-coding-agents/) because direct reads enable "proper attention relationships across context."
-- **Context density is critical.** Bad: "Fix authentication." Good: "Fix OAuth redirect loop where successful login redirects to /login instead of /dashboard. Reference the auth middleware in src/lib/auth.ts."
-- **Inter-agent communication is limited.** Sub-agents can't talk to each other. The most successful pattern at scale is **file-based communication**: each agent writes results to a markdown file, which the next agent reads.
-- **Simple tasks don't need them.** If you're editing one file, the overhead of spawning is wasteful. Don't hire a contractor to change a lightbulb.
-- **Tasks needing continuous shared reasoning** — rapid back-and-forth where coordination overhead slows progress.
+- block dangerous Bash commands
+- run formatters or targeted checks after edits
+- inject compact repo state or reminders at session start
+- send notifications when a task finishes
+- enforce branch protections or policy checks
 
-### Practical Heuristic
+### Best Practices
 
-If the task is "research or review" rather than "decide or build," use a sub-agent. If it needs unified reasoning or tight integration, keep it in the main agent.
+- keep hooks fast and deterministic
+- make blocking hooks narrow and well-tested
+- use `async` for non-blocking background work
+- prefer hooks for enforcement, not semantic routing
+- review hook output so Claude sees what changed
 
-If you want automatic delegation rather than manual prompting, the best pattern is:
+### Fine Details Worth Knowing
 
-- Give each agent a **single sharp specialty** ("React accessibility review", "Postgres query optimization", "log triage").
-- Put the **trigger language in the description**, not buried deep in instructions.
-- Keep tool access and scope aligned with that specialty so the agent feels safe to call.
-- Avoid overlapping agents that all sound like "general engineering help" or Claude will route inconsistently.
+- Hooks are available globally, per project, and inside skills and agents.
+- You can inspect and manage them with `/hooks`.
+- Hook handlers receive JSON input and can return structured decisions.
+- Project hooks are snapshotted when Claude Code launches; use `/hooks` to review and apply changes after editing them externally.
 
-### Patterns
+### What Not To Do
 
-| Pattern | Description | When to Use |
-|---|---|---|
-| **Fan-Out/Fan-In** | Parallel research, synthesize results | Gathering info from many independent sources |
-| **Expert Panel** | Security + Performance + A11y experts review the same code | Multi-perspective analysis |
-| **Pipeline** | Task A → Task B → Task C | Sequential processing stages |
-| **Background Research** | Web lookups, doc exploration while main thread works | Non-blocking info gathering |
+- do not move complex reasoning into shell-based hook classifiers
+- do not attach heavyweight checks to every lifecycle event
+- do not let silent code-changing hooks mutate files without clear output
 
-### Cost Optimization
+The strongest pattern is simple:
 
-Running main sessions on Opus with Sonnet sub-agents (`CLAUDE_CODE_SUBAGENT_MODEL`) significantly reduces costs while maintaining quality for research/review tasks.
-
-### Agent Teams (Experimental, New in Feb 2026)
-
-Agent Teams are different from regular sub-agents: they add a lead + teammate model where teammates can communicate with each other and share a task list.
-
-**Enablement:** off by default. Set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` (env or settings).
-
-**What appears true so far (confidence-ranked):**
-
-- **High confidence (official):** Feature exists and is explicitly experimental, with known limitations (resume gaps, task status lag, slower shutdown, no nested teams, one team per lead session). Cost can be much higher than single-session flows (docs call out roughly ~7x in some plan-mode scenarios).
-- **Medium confidence (named practitioners with hands-on reports):**
-  - [Addy Osmani](https://addyosmani.com/blog/claude-code-agent-teams/) reports strongest wins on parallelizable work (clear ownership boundaries, independent files/domains), and highlights cost/coordination overhead if decomposition is weak.
-  - [Eric Buess](https://www.linkedin.com/posts/ebuess_claude-code-agent-teams-supervision-by-autonomous-activity-7335740096966541312-wm2x) describes an "autonomous supervision" workflow where lead reviews teammate output before integration.
-  - [Matthew Hartman](https://www.linkedin.com/posts/mjhartman_enhance-your-development-workflow-with-agent-activity-7336953312526481408-Olpc) reports agent teams helped front-end + back-end split work in parallel on smaller feature tasks.
-- **Lower confidence (anonymous but repeated):** HN/Reddit users consistently report two themes: big speedups for embarrassingly parallel tasks, and steep token burn/permission friction for tightly-coupled work.
-
-**Practical heuristic (2026 reality):**
-
-- Use Agent Teams for **parallel discovery/review/build lanes** with low file overlap.
-- Prefer normal sub-agents (or single agent) for **sequential reasoning** or shared-file edits.
-- Cap to **2-4 teammates** first; productivity and costs often worsen past that unless orchestration is mature.
-- Treat teams as **throughput tool, not quality guarantee**. Keep tests and explicit acceptance criteria in the lead prompt.
+- memory tells Claude how the repo works
+- skills and subagents provide reusable expertise
+- hooks enforce what must actually happen
 
 ---
 
-## Commands & CLI
+## Built-In Commands That Matter
 
-### Built-In Interactive Commands
+Built-in slash commands are still essential for interactive work. The specific command surface can change, but these are the ones worth knowing well.
 
-| Command | What It Does | Nuanced Take |
-|---|---|---|
-| `/compact` | Summarizes conversation to free context | **The most important command for long sessions.** Use proactively at ~60% context, not when you hit the wall. Accepts instructions: `/compact focus on the database migration work`. |
-| `/clear` | Wipes conversation, starts fresh | Use when switching tasks entirely. Don't use mid-task. |
-| `/review` | Code review of current changes | Good for quick reviews. |
-| `/pr` | Create a pull request | Analyzes branch, drafts title/description, creates PR via `gh`. Very popular. |
-| `/commit` | Create a git commit | Generates conventional commit messages. |
-| `/init` | Create CLAUDE.md | The **single most impactful thing you can do** for quality. |
-| `/memory` | Edit memory files | Useful once your `CLAUDE.md` and imported memory layers become part of the workflow. |
-| `/plugin` | Discover, install, and manage plugins | Important now that marketplaces and plugin-packaged skills are first-class. |
-| `/agents` | Manage custom sub-agents | Good for specialist delegation as your setup matures. |
-| `/mcp` | Manage MCP servers | Faster than editing config by hand once you have several integrations. |
-| `/permissions` | Review or update allowed tools | Helpful when balancing speed vs safety. |
-| `/doctor` | Diagnose install/environment problems | Worth remembering before blaming the model. |
-| `/model` | Switch models mid-session | Sonnet for fast tasks, Opus for complex reasoning. |
-| `/usage` | Show token usage and burn | Track this regularly. Eye-opening. |
+### Session and Context Management
 
-### Custom Slash Commands
+- `/compact`: compress the conversation when context is getting noisy
+- `/clear`: start fresh for a new task
+- `/rewind`: revert to a checkpoint and branch from there
+- `/resume`: return to an earlier session
+- `/btw`: attach "by the way" context without derailing the main flow
+- `/context`: inspect current context usage
 
-Custom slash commands still matter. They are the right tool when you want an explicit, typed entry point such as `/review-pr` or `/ship`.
+### Setup and Memory
 
-- Store them in `.claude/commands/*.md` or `~/.claude/commands/*.md`
-- Plugins can also bundle namespaced commands
-- They support frontmatter such as `description`, `allowed-tools`, `argument-hint`, `model`, and `disable-model-invocation`
-- Use them when you want deterministic invocation rather than skill discovery
+- `/init`: generate an initial `CLAUDE.md`
+- `/memory`: edit memory files
 
-The current Claude Code model is:
+### Delegation and Extensibility
 
-- **Slash command** = "run this exact workflow now"
-- **Skill** = "Claude should know how to do this when relevant"
+- `/plan`: plan before acting
+- `/agents`: manage custom subagents
+- `/skills`: browse or manage skills
+- `/hooks`: manage hooks
+- `/mcp`: manage MCP servers
+- `/plugin`: manage plugins
+- `/reload-plugins`: reload local plugin changes during development
 
-### CLI Flags (The Power User Arsenal)
+### Safety, Tooling, and Visibility
 
-**Essential:**
-- `-p` / `--print` — Non-interactive mode. The gateway to scripting and CI/CD.
-- `-c` / `--continue` — Resume the most recent conversation. Workflow game-changer.
-- `-r` / `--resume` — Resume a specific past session by search.
-- `--model <model>` — Override model. Aliases: `sonnet`, `opus`.
-- `--output-format json` — Structured output for parsing in scripts.
-- `--max-budget-usd` — Cap spending. Only works with `-p`.
+- `/permissions`: review or adjust allowed actions
+- `/sandbox`: inspect or configure sandboxing
+- `/usage`: inspect usage
+- `/cost`: inspect API spend
+- `/release-notes`: open current release notes
+- `/doctor`: troubleshoot installation or environment issues
+- `/model`: switch models
 
-**Permission control:**
-- `--allowedTools "Bash(git:*) Read"` — Whitelist specific tools with glob patterns.
-- `--disallowedTools "Bash(rm:*)"` — Blacklist specific tools.
-- `--permission-mode plan` — Claude only plans, never executes. Great for reviewing what Claude *would* do.
-- `--dangerously-skip-permissions` — Only in sandboxed environments.
+### One Important Deprecation
 
-**CI/CD patterns:**
+Anthropic's current slash-command docs explicitly mark **`/review` as deprecated** in favor of the separate review feature or `claude --review`.
+
+---
+
+## CLI Details That Matter
+
+The CLI is where many of the best high-leverage workflows live.
+
+### Core Flags
+
+- `-p`, `--print`: non-interactive mode
+- `-c`, `--continue`: continue the most recent conversation
+- `-r`, `--resume`: resume a session by id
+- `--session-id`: target a specific session directly
+- `--output-format`: structured output such as JSON or streaming JSON
+- `--model`: choose the model
+- `--effort`: set reasoning effort
+- `--permission-mode`: permission behavior such as `acceptEdits`, `bypassPermissions`, or `plan`
+- `--allowedTools`: allowlist specific tools or patterns
+- `--tools`: MCP tool allowlist
+- `--max-turns`: bound autonomous runs
+- `--max-budget-usd`: cap spend in print mode
+
+### Multi-Repo and Environment Flags
+
+- `--worktree`: create or use git worktrees
+- `--remote`: run in a remote environment
+- `--remote-control`: connect to a running Claude Code instance
+- `--plugin-dir`: load plugins from a local path during development
+- `--strict-mcp-config`: fail fast on invalid MCP configuration
+- `--agents`: point to extra agent definition directories
+
+### Practical CLI Patterns
+
 ```bash
-# One-shot code review
-claude -p "Review this PR for security issues" --output-format json --max-budget-usd 2.00
+# Review changes non-interactively
+claude -p "Review the current diff for correctness, regressions, and missing tests" \
+  --output-format json \
+  --max-turns 3
 
-# Pipe logs for analysis
-tail -f app.log | claude -p "Alert me if you see anomalies"
+# Plan only, no execution
+claude -p "Plan the migration from Jest to Vitest" \
+  --permission-mode plan
 
-# Batch processing
-git diff main --name-only | claude -p "Review changed files for security issues"
+# Continue yesterday's work
+claude --continue
 ```
 
-**Session management:**
-- `--from-pr` — Jump back into the session that created a specific PR.
-- `--fork-session` — Branch off a conversation without mutating the original.
+### Fine Details
+
+- `--max-budget-usd` only applies in print mode.
+- `--permission-mode plan` is one of the best ways to get a high-quality plan before code changes.
+- `--remote-control` and remote environments make it easier to keep heavy work off your local machine, but they add another layer of operational complexity.
 
 ---
 
-## MCP Servers & Plugins
+## MCP Servers and Plugins
 
-The Model Context Protocol connects Claude Code to external tools and data sources. Plugins are now the packaging layer that can bundle **skills, slash commands, hooks, agents, and MCP servers** together.
+These are related but not the same thing.
 
-**Most popular:**
-- **GitHub MCP** — repos, issues, PRs, workflows
-- **Brave Search MCP** — real-time web search
-- **Context7** — live, version-accurate documentation instead of stale training data
-- **Supabase MCP** — database operations via natural language
-- **Firecrawl** — web scraping with JS rendering and anti-bot handling
+### MCP
 
-**Gotchas:** MCP servers bloat context upfront with tool definitions. Claude Code's Tool Search enables lazy loading, but you need to configure it. Not all servers are production-ready — if they crash, Claude loses access mid-session.
+MCP servers expose external tools and data sources to Claude Code. Good uses include:
 
-### Why Plugins Matter Now
+- version-accurate docs
+- GitHub, Jira, and issue trackers
+- databases and internal systems
+- search or retrieval systems
 
-Plugins are where a lot of the new Claude Code surface area lands:
+Use MCP when the missing capability is "Claude needs access to a system."
 
-- **Marketplaces** — Claude Code can connect to plugin marketplaces and expose marketplace-installed tools and workflows inside the app
-- **Team distribution** — a plugin is the cleanest way to share commands, skills, hooks, and MCP integrations across many repos
-- **Code intelligence** — Anthropic documents LSP-based plugins that add diagnostics, jump-to-definition, hover info, and rename support
+### Plugins
 
-If you care about skills, plugins matter because they turn a local `.claude/skills/` experiment into something you can version, publish, and reuse.
+Plugins are the packaging layer for reusable Claude Code extensions. Current docs describe plugins as able to bundle:
 
----
+- skills
+- subagents
+- hooks
+- MCP servers
+- commands
+- LSP-based code intelligence
+- default settings
 
-## Workflow Playbooks
+Use a plugin when the missing capability is "we want to share and version a setup."
 
-### The Architect-Builder Loop (New Features)
+### Fine Details That Matter
 
-1. **Plan (Agent):** Use the Plan agent. "Research the Stripe API and plan the subscription checkout flow."
-   - Output: a markdown plan detailed enough for a human to review.
-2. **Review (Human):** This is your highest-leverage intervention point. Correct the logic here, not in the code.
-3. **Build (Skill):** "Implement step 1 of `plan.md` using the `/new-component` skill."
-
-### The Refactor Sweeper (Tech Debt)
-
-1. **Define:** Create a temporary skill that defines the exact transformation (e.g., "Replace `moment.js` with `date-fns`").
-2. **Execute:** "Find all usages of `moment()` in `src/utils` and apply the refactor skill."
-3. **Verify:** A pre-commit hook runs tests. If they fail, Claude iterates.
-
-### The 20-Turn Rule
-
-If a task takes more than 20 turns, **stop.** Commit the work. Restart the session. Treat sessions as "work days" — clear the slate regularly. `/compact` helps but it's lossy.
+- local plugin development is supported via `--plugin-dir`
+- `/reload-plugins` exists for fast iteration
+- plugins can act as the clean distribution layer for team-standard skills and agents
+- LSP-backed plugins can improve diagnostics and navigation, not just add prompts
 
 ---
 
-## The Hard Truths
+## Best-Practice Workflow Patterns
 
-### The Confidence Trap
+These are the patterns most worth institutionalizing.
 
-Claude is exceptionally good at making code *look* correct. It will confidently introduce a subtle bug while perfectly matching your indentation style. **Mitigation:** Ask Claude to explain potential edge cases *before* it writes the code.
+### 1. Plan Before Heavy Edits
 
-### Usage Limits
+Use `/plan` or `--permission-mode plan` when the task is architectural, risky, or broad. Review the plan before allowing edits.
 
-The #1 community pain point. Pro subscribers reported being reduced from 40-50 hours/week to 6-8 hours after model rollouts. No clear visibility into actual limits or tracking. Community tools like [ccusage](https://github.com/) emerged to fill transparency gaps.
+### 2. Keep Acceptance Criteria In The Prompt
 
-### Context Loss & Auto-Compaction
+Ask for:
 
-Claude forgets project context mid-session. Auto-compact aggressively discards details. Developers describe "racing against compaction." Performance degrades as project complexity increases.
+- the exact files or areas to change
+- constraints
+- tests to run
+- what "done" means
 
-### Confident Incompetence
+Weak:
 
-Claude produces broken code with conviction. Claims tasks are complete when they're incomplete. Generates fake tests that don't verify functionality. One staff engineer reported "only 30% first-try reliability — not from broken code, but from poor architectural decisions creating downstream problems."
+> add auth
 
-### Over-Engineering
+Strong:
 
-Adds unnecessary complexity instead of simple solutions. Creates duplicate files, odd filenames, incomplete refactors. The system prompt explicitly counters this tendency, but it persists.
+> Add password-reset support in the existing auth flow. Reuse the current email provider. Do not change session semantics. Update API handlers, UI states, and tests. Finish only when targeted tests pass.
 
-### Cost
+### 3. Attach Ground Truth
 
-$1,000-1,500/month for senior engineers using it heavily. Opus access requires $100-200/month Claude Max. ROI is there for some (2-3x faster feature shipping), but requires a substantial learning curve.
+Anthropic's docs explicitly support attaching:
 
-### The Reframe That Determines Success
+- files or folders with `@`
+- images by drag/drop or paste
+- URLs for docs or tickets
 
-> "Treat AI like a junior developer who doesn't learn."
+Do that instead of relying on recollection.
 
-> "I'm more critical of 'my code' now because I didn't type a lot of it. No emotional attachment means better reviews."
+### 4. Use Skills For Repeated Work, Not Memory
 
-> "The goal isn't to code without AI, but to be a better developer because of AI — and sometimes that means turning it off."
+If the same workflow keeps reappearing, convert it into a skill instead of inflating `CLAUDE.md`.
+
+### 5. Use Subagents For Research And Separation
+
+If the task is broad or benefits from specialization, delegate. If it is tight and local, keep it in the main thread.
+
+### 6. Turn Checks Into Hooks
+
+If you keep reminding Claude to do the same thing, that is a signal to automate it.
+
+### 7. Reset Before Context Rot Wins
+
+Anthropic's best-practices docs explicitly recommend:
+
+- compacting
+- clearing
+- rewinding
+- resuming
+- using checkpoints
+- running multiple sessions when appropriate
+
+Long, overloaded sessions are a quality problem, not just a token problem.
 
 ---
 
-## Getting Started (Priority Order)
+## Common Failure Patterns
 
-1. **Run `/init`** to create your CLAUDE.md. Keep it under 80 lines — routing table + non-negotiables.
-2. **Add a Stop hook** for notifications and a PreToolUse hook for dangerous command blocking — easy wins, zero risk.
-3. **Add 1-2 explicit slash commands** in `.claude/commands/` for the workflows you invoke intentionally (`/review-pr`, `/ship`, `/triage`).
-4. **Build 2-3 coarse skills** in `.claude/skills/` with strong descriptions and real supporting files. Let each delegate to sub-agents for specialized work.
-5. **Iterate on CLAUDE.md** by pruning. When Claude ignores an instruction, the file is probably too long. Cut lines, don't add them.
-6. **Only then** explore plugins, MCP servers, and UserPromptSubmit context injection.
+These are the mistakes most likely to degrade Claude Code output quality.
 
-Don't front-load everything into CLAUDE.md. Don't build 10 narrow skills. Don't confuse skills with slash commands. Don't stack 5 synchronous hooks. Start simple, add complexity as you understand the failure modes.
+### Overstuffed Memory
+
+Too much always-on instruction creates dilution. Keep memory focused and move detail elsewhere.
+
+### Vague Prompts
+
+"Fix this" is much worse than "Investigate this failing test, explain root cause, then patch only the minimal code path and rerun the targeted suite."
+
+### Soft Rules For Hard Requirements
+
+If something must happen, do not trust memory alone. Use a hook, a restricted tool policy, or a scripted check.
+
+### Wrong Layer
+
+If you solve every problem with `CLAUDE.md`, you will end up with poor routing and lower compliance. Use the right layer instead.
+
+### One Endless Session
+
+Claude Code works better when you deliberately restart, compact, rewind, or split work into multiple threads.
+
+---
+
+## Good Defaults For A New Repo
+
+If you are setting up Claude Code from scratch, this is the order that tends to pay off fastest:
+
+1. Run `/init`, then prune `CLAUDE.md` down to the smallest useful version.
+2. Add `.claude/rules/` for domain-specific or subtree-specific guidance.
+3. Create 2-3 skills for your most repeated workflows.
+4. Add a few narrow hooks for safety and verification.
+5. Add subagents only where specialization or isolation genuinely helps.
+6. Add MCP servers for live systems and plugins for shared packaging once the basics are stable.
+
+That sequence usually beats jumping straight into a large plugin or hook stack.
+
+---
+
+## What I Removed From The Previous Guide
+
+The older version mixed in a lot of fast-moving or weakly sourced material. I removed or de-emphasized:
+
+- the outdated "custom slash commands vs skills" split
+- brittle feature counts such as fixed hook event totals
+- speculative or community-only claims about cost, usage limits, and adoption
+- issue-driven claims that were not central to getting better results
+- opinionated heuristics that were not clearly grounded in current Anthropic docs
+
+Those sections age badly and distract from the practices that consistently improve output.
 
 ---
 
 ## References
 
-### Official Documentation
-- [Claude Code Overview](https://docs.claude.com/en/docs/claude-code/overview) | [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands) | [Hooks](https://docs.claude.com/en/docs/claude-code/hooks) | [Subagents](https://docs.claude.com/en/docs/claude-code/sub-agents) | [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference) | [MCP](https://docs.claude.com/en/docs/claude-code/mcp)
-- [Agent Skills docs](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) | [Manage Skills in Claude Code](https://docs.claude.com/en/docs/claude-code/tutorials/manage-skills) | [The Complete Guide to Building Skills for Claude (official Anthropic PDF)](https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf?hsLang=en) | [Skill Builder Guide (community Markdown conversion of Anthropic PDF)](https://gist.github.com/joyrexus/ff71917b4fc0a2cbc84974212da34a4a)
-- [Plugins Overview](https://docs.claude.com/en/docs/claude-code/plugins/overview) | [Create Plugins](https://docs.claude.com/en/docs/claude-code/plugins/create-plugins) | [Plugin Marketplaces](https://docs.claude.com/en/docs/claude-code/plugins/marketplaces) | [Code Intelligence Plugins](https://docs.claude.com/en/docs/claude-code/plugins/code-intelligence-plugins)
-- [Release Notes](https://docs.claude.com/en/release-notes/overview)
+### Official Docs
+
+- [Claude Code Overview](https://code.claude.com/docs/en/overview)
+- [Best Practices](https://code.claude.com/docs/en/best-practices)
+- [Memory](https://code.claude.com/docs/en/memory)
+- [Slash Commands](https://code.claude.com/docs/en/slash-commands)
+- [Hooks](https://code.claude.com/docs/en/hooks)
+- [Subagents](https://code.claude.com/docs/en/sub-agents)
+- [Skills](https://code.claude.com/docs/en/skills)
+- [CLI Reference](https://code.claude.com/docs/en/cli-reference)
+- [Plugins](https://code.claude.com/docs/en/plugins)
+- [MCP](https://code.claude.com/docs/en/mcp)
+
+### Official Release Tracking
+
+- [Claude release notes overview](https://docs.claude.com/en/release-notes/overview)
+- [anthropics/claude-code releases](https://github.com/anthropics/claude-code/releases)
+- [anthropics/claude-code changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
 
 ### Anthropic Engineering
-- [Building a C Compiler with Parallel Claudes](https://www.anthropic.com/engineering/building-c-compiler) | [Equipping Agents with Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) | [Enabling Autonomous Claude Code](https://www.anthropic.com/news/enabling-claude-code-to-work-more-autonomously) | [How to Configure Hooks](https://claude.com/blog/how-to-configure-hooks)
 
-### Developer Experience
-- [Sanity: First Attempt Will Be 95% Garbage](https://www.sanity.io/blog/first-attempt-will-be-95-garbage) | [Sankalp: Claude Code 2.0 Experience](https://sankalp.bearblog.dev/my-experience-with-claude-code-20-and-how-to-get-better-at-using-coding-agents/) | [Builder.io: How I Use Claude Code](https://www.builder.io/blog/claude-code) | [sshh.io: How I Use Every Feature](https://blog.sshh.io/p/how-i-use-every-claude-code-feature) | [Addy Osmani: Claude Code Agent Teams](https://addyosmani.com/blog/claude-code-agent-teams/) | [Getting Good Results](https://www.dzombak.com/blog/2025/08/getting-good-results-from-claude-code/) | [HumanLayer: Writing a Good CLAUDE.md](https://www.humanlayer.dev/blog/writing-a-good-claude-md) | [Kelsey Piper: I Can't Stop Yelling at Claude Code](https://www.theargumentmag.com/p/i-cant-stop-yelling-at-claude-code) | [Medium: Hooks 6-Month Production Report](https://alirezarezvani.medium.com/the-claude-code-hooks-nobody-talks-about-my-6-month-production-report-30eb8b4d9b30)
-
-### Architecture & Optimization
-- [Anthropic: Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) | [Arize: CLAUDE.md Best Practices from Prompt Learning](https://arize.com/blog/claude-md-best-practices-learned-from-optimizing-claude-code-with-prompt-learning/) | [alexop.dev: Progressive Disclosure for AI Coding Tools](https://alexop.dev/posts/stop-bloating-your-claude-md-progressive-disclosure-ai-coding-tools/) | [paddo.dev: Skills Controllability Problem](https://paddo.dev/blog/claude-skills-controllability-problem/) | [paddo.dev: Hooks as Guardrails That Actually Work](https://paddo.dev/blog/claude-code-hooks-guardrails/) | [paddo.dev: How Boris Uses Claude Code](https://paddo.dev/blog/how-boris-uses-claude-code/) | [John Lindquist: Auto-Refresh Context Every N Prompts](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc) | [GitButler: Automate Workflows with Hooks](https://blog.gitbutler.com/automate-your-ai-workflows-with-claude-code-hooks)
-
-### Community & Issues
-- [HN: Claude Code Agent Teams Thread](https://news.ycombinator.com/item?id=46902368) | [HN: Opus 4.6 Launch Thread](https://news.ycombinator.com/item?id=46902223) | [Reddit: Agent Teams Early Testing](https://www.reddit.com/r/ClaudeCode/comments/1qwxah9/anyone_testing_agent_teams/) | [Reddit: Agent Teams Discussion](https://www.reddit.com/r/ClaudeCode/comments/1r0n4ma/agent_teams/) | [The Register: Usage Limits](https://www.theregister.com/2026/01/05/claude_devs_usage_limits/) | [GitHub #9094: Usage Limits](https://github.com/anthropics/claude-code/issues/9094) | [Community Struggles Gist](https://gist.github.com/eonist/0a5f4ae592eadafd89ed122a24e50584) | [GitHub #21988: Hook Exit Codes](https://github.com/anthropics/claude-code/issues/21988) | [GitHub #3523: Hook Duplication](https://github.com/anthropics/claude-code/issues/3523)
-
-### Collections & Toolkits
-- [awesome-claude-code (21.6k stars)](https://github.com/hesreallyhim/awesome-claude-code) | [awesome-claude-code-toolkit](https://github.com/rohitg00/awesome-claude-code-toolkit) | [everything-claude-code](https://github.com/affaan-m/everything-claude-code) | [Claude Command Suite](https://github.com/qdhenry/Claude-Command-Suite) | [claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) | [Claude Plugins Directory](https://claude-plugins.dev/)
-
-### Tutorials
-- [alexop.dev: Full Stack Guide](https://alexop.dev/posts/understanding-claude-code-full-stack/) | [OneAway: Skills Complete Guide](https://oneaway.io/blog/claude-code-skills-slash-commands) | [DataCamp: Hooks Tutorial](https://www.datacamp.com/tutorial/claude-code-hooks) | [ClaudeFast: Sub-Agent Best Practices](https://claudefa.st/blog/guide/agents/sub-agent-best-practices) | [F22 Labs: 10 Productivity Workflows](https://www.f22labs.com/blogs/10-claude-code-productivity-tips-for-every-developer/)
+- [Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+- [Equipping Agents with Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills)
+- [How to Configure Hooks](https://www.anthropic.com/news/how-to-configure-hooks)
+- [Building a C Compiler with Parallel Claudes](https://www.anthropic.com/engineering/building-c-compiler)
 
 ---
 
-*Updated March 7, 2026. Claude Code evolves rapidly — verify against the current docs and release notes before treating any workflow as settled.*
+When in doubt, prefer the official docs and release notes over any third-party guide, including this one.
