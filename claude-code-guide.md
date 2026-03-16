@@ -456,6 +456,49 @@ claude --continue
 - `--permission-mode plan` is one of the best ways to get a high-quality plan before code changes.
 - `--remote-control` and remote environments make it easier to keep heavy work off your local machine, but they add another layer of operational complexity.
 
+### Permissions Reality
+
+The documented permission model is cleaner than the day-to-day experience many users report, especially for Bash.
+
+What the docs say:
+
+- permission rules support tool-specific patterns such as `Bash(...)`
+- Claude Code is aware of shell operators, so allowing one command should not automatically allow a chained second command
+- Bash allowlists are fragile for argument-sensitive cases, especially when you try to encode safety through exact command strings
+
+What repeated GitHub reports show:
+
+- "always allow" and saved permission rules have repeatedly failed to match later commands reliably
+- compound Bash commands using `&&`, pipes, semicolons, heredocs, or wrappers have been a recurring source of extra prompts and matching bugs
+- Anthropic has shipped many fixes in this area, which is useful, but also a sign that this surface has been unstable
+
+The practical conclusion is:
+
+- do not rely on narrow Bash allow patterns for compound commands
+- prefer broad command-family rules such as `Bash(git *)` over clever argument matching
+- prefer Claude's native tools (`Read`, `Grep`, `Glob`, `WebFetch`) over shell pipelines when possible
+- use sandboxing to reduce approval churn rather than trying to solve everything with `allow`
+- if chained shell is causing friction, block it with a `PreToolUse` hook and tell Claude to run one shell command at a time
+
+For teams dealing with repeated approvals across many repos, the most reliable pattern appears to be:
+
+- put stable rules in `~/.claude/settings.json`
+- use `defaultMode: acceptEdits`
+- enable sandboxing with `autoAllowBashIfSandboxed`
+- keep the Bash allowlist broad and boring
+- move policy enforcement to hooks
+
+Relevant sources:
+
+- [Permissions docs](https://code.claude.com/docs/en/permissions)
+- [Sandboxing docs](https://code.claude.com/docs/en/sandboxing)
+- [Issue #1271: repeated prompts for combined commands](https://github.com/anthropics/claude-code/issues/1271)
+- [Issue #4787: broad Bash permissions behaving inconsistently](https://github.com/anthropics/claude-code/issues/4787)
+- [Issue #4956: chained commands bypassing or mismatching permissions](https://github.com/anthropics/claude-code/issues/4956)
+- [Issue #6850: existing saved rules still prompting again](https://github.com/anthropics/claude-code/issues/6850)
+- [Issue #9875: "don't ask again" overwriting saved rules](https://github.com/anthropics/claude-code/issues/9875)
+- [Claude Code changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
+
 ---
 
 ## MCP Servers and Plugins
