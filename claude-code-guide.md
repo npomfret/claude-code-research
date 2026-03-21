@@ -468,7 +468,10 @@ What the docs say:
 
 What repeated GitHub reports show:
 
+- some users report repeated prompts for the exact same command even after choosing "always allow"
 - "always allow" and saved permission rules have repeatedly failed to match later commands reliably
+- "don't ask again" currently saves to `.claude/settings.local.json` by default, which means approvals often do not follow users across repos unless they manually promote them into `~/.claude/settings.json`
+- there are reports of new approvals overwriting or clobbering earlier saved local rules instead of cleanly appending
 - compound Bash commands using `&&`, pipes, semicolons, heredocs, or wrappers have been a recurring source of extra prompts and matching bugs
 - Anthropic has shipped many fixes in this area, which is useful, but also a sign that this surface has been unstable
 
@@ -476,9 +479,11 @@ The practical conclusion is:
 
 - do not rely on narrow Bash allow patterns for compound commands
 - prefer broad command-family rules such as `Bash(git *)` over clever argument matching
+- promote durable approvals into `~/.claude/settings.json` instead of leaving them only in project-local settings
 - prefer Claude's native tools (`Read`, `Grep`, `Glob`, `WebFetch`) over shell pipelines when possible
 - use sandboxing to reduce approval churn rather than trying to solve everything with `allow`
 - if chained shell is causing friction, block it with a `PreToolUse` hook and tell Claude to run one shell command at a time
+- if you want the least friction and can tolerate the risk, some users fall back to `bypassPermissions` or `--dangerously-skip-permissions`, but this only makes sense in an isolated container, VM, or other disposable environment
 
 For teams dealing with repeated approvals across many repos, the most reliable pattern appears to be:
 
@@ -488,15 +493,21 @@ For teams dealing with repeated approvals across many repos, the most reliable p
 - keep the Bash allowlist broad and boring
 - move policy enforcement to hooks
 
+This is also consistent with Anthropic's own direction: the October 8, 2025 sandboxing announcement explicitly frames stronger sandboxing as the path to fewer permission prompts and more autonomous operation.
+
 Relevant sources:
 
 - [Permissions docs](https://code.claude.com/docs/en/permissions)
 - [Sandboxing docs](https://code.claude.com/docs/en/sandboxing)
+- [Beyond permission prompts: making Claude Code more secure and autonomous](https://claude.com/blog/beyond-permission-prompts-making-claude-code-more-secure-and-autonomous)
+- [Issue #819: repeated prompts for a previously approved command](https://github.com/anthropics/claude-code/issues/819)
 - [Issue #1271: repeated prompts for combined commands](https://github.com/anthropics/claude-code/issues/1271)
 - [Issue #4787: broad Bash permissions behaving inconsistently](https://github.com/anthropics/claude-code/issues/4787)
 - [Issue #4956: chained commands bypassing or mismatching permissions](https://github.com/anthropics/claude-code/issues/4956)
 - [Issue #6850: existing saved rules still prompting again](https://github.com/anthropics/claude-code/issues/6850)
+- [Issue #11073: "don't ask again" only saving to local project settings](https://github.com/anthropics/claude-code/issues/11073)
 - [Issue #9875: "don't ask again" overwriting saved rules](https://github.com/anthropics/claude-code/issues/9875)
+- [Issue #11380: continually asking for permission even after "always allow"](https://github.com/anthropics/claude-code/issues/11380)
 - [Claude Code changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
 
 ---
