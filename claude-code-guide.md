@@ -6,6 +6,20 @@ This guide is for real codebases that will still matter in six months. It is not
 
 Anthropic's official documentation is the source of truth for what Claude Code can do: [Best Practices](https://code.claude.com/docs/en/best-practices), [Memory](https://code.claude.com/docs/en/memory), [Skills](https://code.claude.com/docs/en/skills), [Hooks](https://code.claude.com/docs/en/hooks), [MCP](https://code.claude.com/docs/en/mcp), [Commands](https://code.claude.com/docs/en/commands), [CLI Reference](https://code.claude.com/docs/en/cli-reference), [Settings](https://docs.anthropic.com/en/docs/claude-code/settings), and the [Claude Code changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md). The research reports in the reading-list index are useful as evidence of how people are using the tool in practice, but they are not authoritative. Several of them are good at surfacing mechanisms and bad at describing what scales.
 
+## Common Claude Failure Modes
+
+If the setup does not actively counter these, Claude will keep doing them:
+
+- It copy-pastes locally convenient logic instead of finding or extracting the shared abstraction.
+- It makes the smallest possible code change even when the surrounding structure is unready for the new requirement.
+- It invents slight pattern variants because the first few files it read looked "close enough."
+- It silently introduces new abstractions, dependencies, or file shapes unless explicitly told to stop and ask.
+- It follows whatever context is most visible, which means bloated root memory and poorly routed guidance actively make it worse.
+- It reaches for tools, MCPs, or browser automation before exhausting code-level investigation if those tools are available.
+- It misses reusable workflow instructions when they are not designed to be automatically discoverable from the user's wording.
+
+The rest of this guide exists to suppress those failure modes structurally rather than hoping Claude behaves better on its own.
+
 ## Source Posture
 
 Before talking about setup, it is worth being explicit about the source material.
@@ -223,6 +237,25 @@ Use a structure like this:
 
 This design keeps the root file short while still making detailed guidance available. It also avoids relying on `.claude/rules/` semantics that may not be stable or well-documented.
 
+### Design for self-discovery
+
+Assume the user will often forget which skill, rule, or agent exists. The setup should still work.
+
+That means common workflows must be designed so Claude can discover and route to them automatically from ordinary task wording. If a recurring workflow only works when the human remembers a specific slash command or exact skill name, the setup is underspecified.
+
+Use these rules:
+
+- Give skills names and `description` fields that match real task language such as "feature workflow", "API conventions", or "bug investigation", not internal jargon.
+- State both when to use the skill and when not to use it. Overlapping skills reduce routing reliability.
+- Keep high-frequency skills narrow and obvious so Claude can confidently auto-select them.
+- Keep rare or heavy workflows explicit. Automatic routing should cover common cases, not every possible case.
+- Put routing hints in root `CLAUDE.md` so Claude is told to locate the applicable convention or workflow skill before editing.
+- Write reference docs to support a skill, not to act as orphaned markdown that Claude might never load.
+- If you use custom agents or subagents, define them around distinct jobs Claude can infer, such as `repo-audit`, `ui-review`, or `migration-check`, not vague labels like `engineer` or `helper`.
+- If Claude repeatedly misses a relevant skill, fix the skill metadata, split overlapping skills, or rename the skill. Do not solve repeated routing failures by telling the user to remember more commands.
+
+The design target is simple: for common task types, the user should be able to ask for the work naturally and Claude should pull in the right workflow guidance without being hand-held.
+
 ### How to write a skill
 
 A good skill is concise, narrow, and action-oriented. The official skills docs are right that routing quality depends heavily on the `description`, invocation settings, and tool boundaries. The changelog is also relevant here because it confirms skills can hot-reload and use `context: fork`, which makes them more practical for iterative team use.
@@ -257,7 +290,8 @@ Use automatic routing for:
 
 - frequent workflow skills,
 - narrow subsystem conventions,
-- recurring bugfix or review flows.
+- recurring bugfix or review flows,
+- and any guidance the user is likely to forget to invoke manually.
 
 Require explicit invocation for:
 
