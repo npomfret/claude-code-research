@@ -838,7 +838,7 @@ For long-running interactive projects, the right use of hooks is:
 
 That is where hooks shine.
 
-Natural-language-detecting hooks are usually a bad idea. If a hook has to infer user intent from vague task wording, classify whether a request "sounds like" a bug fix, or guess which workflow should apply from free text, it will be brittle. Use skills, agent descriptions, and root routing rules for semantic routing. Claude is already the language model in the loop, so it is usually better to rely on its own routing intelligence than to bolt on a second, cruder natural-language classifier in hooks. If semantic routing works most of the time and failures are corrected by better descriptions, narrower scope, and clearer routing hints, that is good enough. Use hooks for deterministic events and deterministic side effects.
+Natural-language-detecting hooks are usually a bad idea. If a hook has to infer user intent from vague task wording, classify whether a request "sounds like" a bug fix, or guess which workflow should apply from free text, it will be brittle. Use skills, agent descriptions, and root routing rules for semantic routing. Claude is already the language model in the loop, so it is usually better to rely on its own routing intelligence than to bolt on a second, cruder natural-language classifier in hooks. If semantic routing works almost all of the time and failures are corrected by better descriptions, narrower scope, and clearer routing hints, that is good enough. Use hooks for deterministic events and deterministic side effects.
 
 ### Hooks are not the right place to block normal development actions
 
