@@ -885,6 +885,23 @@ The official docs allow blocking. This guide still recommends against making tha
 
 Use hooks to observe and enhance. Do not use them to paper over bad governance.
 
+### Permissions reality
+
+Claude Code's permissions are one of the most annoying parts of the interactive CLI in practice. The official [settings system](https://docs.anthropic.com/en/docs/claude-code/settings) supports `allow`, `ask`, `deny`, and default permission modes, but fine-grained command matching is often brittle in real use. You allow one command shape, Claude emits a slightly different shell line, and you get prompted again anyway.
+
+Treat this as an operational annoyance, not a puzzle you must perfectly solve. In long-running interactive work, there is often no great fine-grained solution. Do not spend days trying to build a beautiful exact-match permission matrix for Bash. Claude will keep finding near-miss command lines.
+
+The practical recommendation is:
+
+- prefer broad, boring permission settings over clever command-specific ones
+- rely on `CLAUDE.md`, skills, hooks, git, tests, and review for behavioral control
+- use sandboxing and repo rules for the things that truly matter
+- if you are working interactively all day, a very permissive local `settings.json` is often the least bad option
+
+According to the current official docs, the most permissive documented mode is `defaultMode: "bypassPermissions"`. That is the closest thing to "stop nagging me" in the current product surface. Anthropic explicitly warns to use it only in isolated environments, and even then it still prompts for writes to protected directories like `.git`, `.claude`, `.vscode`, and `.idea`, with some narrower exemptions for routine Claude-owned paths under `.claude`. In practice, that means even the most permissive documented mode is not truly prompt-free.
+
+An example permissive config lives in `examples/settings.json`. The intended use is to copy it into `.claude/settings.local.json` or `~/.claude/settings.json` depending whether you want repo-local or user-global behavior. Do not check a bypass-permissions config into team-shared project settings unless the whole team has explicitly agreed to that risk.
+
 ### Further reading
 
 - [Claude Code Hooks](https://code.claude.com/docs/en/hooks)
@@ -892,6 +909,12 @@ Use hooks to observe and enhance. Do not use them to paper over bad governance.
 - [15 Hidden and Under-Utilized Features in Claude Code](https://npomfret.github.io/reading-list-researcher/08a08a991d5e8161.html)
 - [dprint](https://dprint.dev/)
 - [dprint CLI](https://dprint.dev/cli/)
+- [Claude Code Settings](https://docs.anthropic.com/en/docs/claude-code/settings)
+- [Issue #1271](https://github.com/anthropics/claude-code/issues/1271)
+- [Issue #4787](https://github.com/anthropics/claude-code/issues/4787)
+- [Issue #4956](https://github.com/anthropics/claude-code/issues/4956)
+- [Issue #6850](https://github.com/anthropics/claude-code/issues/6850)
+- [Issue #9875](https://github.com/anthropics/claude-code/issues/9875)
 
 ## 9. Parallelisation
 
