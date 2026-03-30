@@ -15,6 +15,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It invents slight pattern variants because the first few files it read looked "close enough."
 - It sometimes over-engineers in the opposite direction by introducing speculative abstractions that the current codebase does not actually need.
 - It avoids refactoring and test-first discipline unless forced to do them.
+- It is bad at keeping code formatting consistent unless formatting is handled mechanically.
 - It silently introduces new abstractions, dependencies, or file shapes unless explicitly told to stop and ask.
 - It follows whatever context is most visible, which means bloated root memory and poorly routed guidance actively make it worse.
 - It reaches for tools, MCPs, or browser automation before exhausting code-level investigation if those tools are available.
@@ -400,6 +401,7 @@ Your convention system must cover every area where Claude can invent a new local
 - API client and server shapes,
 - validation,
 - logging,
+- formatting expectations,
 - test placement and style,
 - mocking rules,
 - migration patterns,
@@ -416,6 +418,16 @@ Examples:
 - React: state ownership, effect usage, data-fetching shape, and component boundary rules
 - Go: package layout, error wrapping, interface usage, and when helpers should stay local
 - Python: module structure, typing expectations, exception boundaries, and how side effects are isolated
+
+Formatting deserves special treatment. Claude is not reliable at preserving exact formatting conventions over time, especially in mixed-language repos or codebases with very specific style requirements. Do not rely on prose alone here. Put formatting under mechanical control.
+
+For many teams, [dprint](https://dprint.dev/) is a strong default because it is fast, multi-language, and configuration-driven. The practical pattern is:
+
+- define formatting policy in formatter config, not in prose
+- run formatting automatically on touched files after edits
+- use checks in CI or review flows to catch anything that still slips through
+
+The goal is not to teach Claude formatting taste. The goal is to remove formatting taste as a variable.
 
 ### Global conventions vs module-local conventions
 
@@ -859,10 +871,13 @@ Good hooks for this setup:
 - `SessionStart`: print a short reminder to use convention skills and the feature workflow for non-trivial changes.
 - `PostToolUse`: append command and file-change logs to an audit file.
 - post-edit side effect: run a targeted formatter or linter on touched files.
+- formatting hook: reformat every touched file with `dprint` so Claude's inconsistent formatting does not accumulate in the repo.
 - `Stop`: write a short task summary or emit a notification.
 - multi-agent events from recent changelog additions: record task completion or teammate idle state if you use multi-agent workflows.
 
 Keep them fast, deterministic, and visible.
+
+If you want one concrete default, prefer formatting touched files with `dprint` rather than asking Claude to keep style consistent from memory. `dprint` is fast enough to fit well into post-edit automation, supports multiple languages, and is built for config-driven formatting. Run it narrowly on changed files, not as a whole-repo sweep after every small edit.
 
 ### Why blocking hooks are worse than they look
 
@@ -875,6 +890,8 @@ Use hooks to observe and enhance. Do not use them to paper over bad governance.
 - [Claude Code Hooks](https://code.claude.com/docs/en/hooks)
 - [Claude Code CHANGELOG.md](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
 - [15 Hidden and Under-Utilized Features in Claude Code](https://npomfret.github.io/reading-list-researcher/08a08a991d5e8161.html)
+- [dprint](https://dprint.dev/)
+- [dprint CLI](https://dprint.dev/cli/)
 
 ## 9. Parallelisation
 
