@@ -14,6 +14,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It makes the smallest possible code change even when the surrounding structure is unready for the new requirement.
 - It invents slight pattern variants because the first few files it read looked "close enough."
 - It sometimes over-engineers in the opposite direction by introducing speculative abstractions that the current codebase does not actually need.
+- It avoids refactoring and test-first discipline unless forced to do them.
 - It silently introduces new abstractions, dependencies, or file shapes unless explicitly told to stop and ask.
 - It follows whatever context is most visible, which means bloated root memory and poorly routed guidance actively make it worse.
 - It reaches for tools, MCPs, or browser automation before exhausting code-level investigation if those tools are available.
@@ -51,6 +52,8 @@ Claude Code does not naturally optimize for long-term codebase coherence. It opt
 The official [Best Practices](https://code.claude.com/docs/en/best-practices) doc is right to stress specificity, context, and verification. The Boris memory-system report is right that process discipline matters more than "prompt tricks." The best-practices-repo report is right that many teams underuse planning and reusable workflows. But most public advice still understates the main issue: the failure mode is not just "Claude occasionally makes mistakes." The failure mode is ongoing structural degradation.
 
 Pattern drift compounds. One new error-handling style becomes three. A second API-call shape appears because the agent patched one endpoint quickly. One feature uses a shared helper, the next writes the logic inline, and a third invents a wrapper. Six weeks later the project has inconsistent behavior, partial abstractions, and bugs that only exist in one branch of duplicated code.
+
+Operationally, you should treat Claude like a lazy, inexperienced, tasteless developer with a strong bias against refactoring and TDD. That sounds harsh, but it produces the correct setup instincts. You do not give that developer vague guidance and broad freedom. You give them explicit constraints, clear examples, narrow workflow rules, and approval gates around anything that expands the codebase's conceptual surface area.
 
 ### Claude has a minimum-change bias
 
@@ -274,6 +277,20 @@ Use these rules:
 
 The design target is simple: for common task types, the user should be able to ask for the work naturally and Claude should pull in the right workflow guidance without being hand-held.
 
+### Practical routing checklist
+
+When a skill or agent is meant to be discovered automatically, use this checklist:
+
+- Name it with words a developer would actually say in a request, not team-internal jargon.
+- Put likely trigger phrases in the description such as "bug fix", "feature work", "API change", "review diff", or "database migration".
+- Include anti-triggers in the description so Claude knows when not to use it.
+- Keep one skill focused on one job. If the description needs a long "and also", it is probably two skills.
+- Prefer one obvious skill for a common task type over three partially overlapping skills.
+- Test routing with several natural prompts a real user might type. If Claude does not reliably pick the intended skill, rename it or tighten the description.
+- If a skill is important but easy to miss, add a routing reminder in root `CLAUDE.md`.
+- If a workflow is rare, expensive, or risky, do not force automatic routing just because it is possible.
+- Review missed invocations as a setup bug. Repeated misses usually mean the metadata, naming, or scope is wrong.
+
 ### How to write a skill
 
 A good skill is concise, narrow, and action-oriented. The official skills docs are right that routing quality depends heavily on the `description`, invocation settings, and tool boundaries. The changelog is also relevant here because it confirms skills can hot-reload and use `context: fork`, which makes them more practical for iterative team use.
@@ -330,6 +347,27 @@ In this guide, a rule is not a random text file. A rule is a load-bearing instru
 
 That definition matters because it prevents the common failure where teams scatter instructions across markdown files and hope Claude infers the right one at the right time.
 
+### What a rule looks like in practice
+
+The safest way to think about rules is by where they live and how they are enforced.
+
+Example:
+
+- Root rule in `CLAUDE.md`:
+  - "Never introduce a new dependency or abstraction without explicit approval."
+- Scoped rule in a convention doc or skill:
+  - "In `apps/api/**`, services throw typed domain errors and route handlers translate them. Do not return ad-hoc `{ ok: false }` objects."
+- Enforced rule in tooling:
+  - "Touched API packages must pass their targeted test command before the task is complete."
+
+Those are all rules, but they are different kinds of rules:
+
+- routing or operating rules belong in root memory
+- local behavioral rules belong in convention docs and the skills that load them
+- non-negotiable completion or enforcement rules belong in hooks, tests, or scripts
+
+This is why the guide does not treat `.claude/rules/` as the center of the architecture. The important question is not "do we have a rules folder?" The important question is "does each rule live in the correct layer, and will Claude reliably encounter it when needed?"
+
 ### Further reading
 
 - [Claude Code Skills](https://code.claude.com/docs/en/skills)
@@ -369,6 +407,15 @@ Your convention system must cover every area where Claude can invent a new local
 - and any domain-specific invariants that must stay consistent.
 
 If a topic can drift, it needs a convention.
+
+Language-specific and framework-specific rules are especially high leverage. Claude's laziness often shows up as "good enough for this file" code that violates the idioms of the language or framework the rest of the codebase is using. Explicit language-level rules are a strong way to constrain that lazy but enthusiastic behavior before it spreads.
+
+Examples:
+
+- TypeScript: when to use unions vs classes, where runtime validation happens, how async errors are represented, and which import style is canonical
+- React: state ownership, effect usage, data-fetching shape, and component boundary rules
+- Go: package layout, error wrapping, interface usage, and when helpers should stay local
+- Python: module structure, typing expectations, exception boundaries, and how side effects are isolated
 
 ### Global conventions vs module-local conventions
 
@@ -790,6 +837,8 @@ For long-running interactive projects, the right use of hooks is:
 - and recording useful metadata.
 
 That is where hooks shine.
+
+Natural-language-detecting hooks are usually a bad idea. If a hook has to infer user intent from vague task wording, classify whether a request "sounds like" a bug fix, or guess which workflow should apply from free text, it will be brittle. Use skills, agent descriptions, and root routing rules for semantic routing. Claude is already the language model in the loop, so it is usually better to rely on its own routing intelligence than to bolt on a second, cruder natural-language classifier in hooks. If semantic routing works most of the time and failures are corrected by better descriptions, narrower scope, and clearer routing hints, that is good enough. Use hooks for deterministic events and deterministic side effects.
 
 ### Hooks are not the right place to block normal development actions
 
