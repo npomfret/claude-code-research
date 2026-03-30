@@ -1,5 +1,7 @@
 # Claude Code Guide: Memory and Rules
 
+> Superseded by `claude-code-guide.md`, which is now the canonical guide. Keep this file only as source material or supporting notes.
+
 Last verified: **March 30, 2026**
 
 This section covers the part of Claude Code that most teams loosely call "rules." The important nuance is that not all rules are the same.

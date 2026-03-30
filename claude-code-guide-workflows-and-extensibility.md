@@ -1,5 +1,7 @@
 # Claude Code Guide: Workflows and Extensibility
 
+> Superseded by `claude-code-guide.md`, which is now the canonical guide. Keep this file only as source material or supporting notes.
+
 Last verified: **March 30, 2026**
 
 This section covers the reusable and composable parts of Claude Code: skills, subagents, hooks, MCP servers, and plugins.
