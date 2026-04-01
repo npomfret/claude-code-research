@@ -1,6 +1,6 @@
 # Claude Code Setup for Long-Running Projects
 
-Last verified: **March 30, 2026**
+Last verified: **April 1, 2026**
 
 This guide is for real codebases that will still matter in six months. It is not for demos, weekend prototypes, or "look what the agent can do" threads. The central problem is simple: Claude Code is useful, fast, and broad, but without structure it is a sloppy programmer. It duplicates logic, patches features into code that should have been refactored first, and slowly fills a codebase with pattern drift.
 
@@ -37,6 +37,7 @@ Before talking about setup, it is worth being explicit about the source material
 - The Google Stitch workflow report is a valid example of high-value task-specific context. It is still narrow, frontend-heavy, and token-expensive. It should influence design-task setup, not the architecture of the whole Claude Code system. Source: [Claude Code + Google Stitch 2.0](https://npomfret.github.io/reading-list-researcher/2aa3ed775a7a775e.html).
 - The dev-browser report is useful as evidence that browser tooling can be valuable. It is not evidence that browser tooling should be a default reflex. Source: [Sawyer Hood Announces dev-browser Hits 4k GitHub Stars](https://npomfret.github.io/reading-list-researcher/b4cbb3b860869a88.html).
 - The changelog is essential because it proves which features actually exist now, including skill hot-reload, forked skill contexts, new hook events, memory behavior changes, and operational fixes. It is descriptive, not prescriptive. Source: [Claude Code CHANGELOG.md](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md).
+- The March 2026 source leak is the most significant new primary source for understanding Claude Code's internals. Version 2.1.88 shipped with a source map file that exposed ~512,000 lines of TypeScript. The leak revealed the full architecture: a 3-layer memory system, 5-strategy context compaction, a 6-layer permission pipeline, ~40 registered tools, 44 unreleased feature flags, anti-distillation mechanisms, and aggressive prompt caching via a static/dynamic boundary. The community analysis is strong on architecture and mechanisms and weak where it treats unreleased feature flags as product commitments. The most operationally useful findings confirm several positions in this guide: memory must be concise because the runtime is already fighting context pressure with a sophisticated compaction system, skills are the correct routing mechanism because the tool architecture is deeply built around them, and the permission system is intentionally layered, which is why it feels over-prompty in practice. Sources: [Alex Kim's analysis](https://alex000kim.com/posts/2026-03-31-claude-code-source-leak/), [Sebastian Raschka's architecture analysis](https://sebastianraschka.com/blog/2026/claude-code-secret-sauce.html), [Engineer's Codex deep dive](https://read.engineerscodex.com/p/diving-into-claude-codes-source-code), [Hacker News discussion](https://news.ycombinator.com/item?id=47586778).
 
 The recurring consensus across the sources is real: keep memory concise, plan before broad edits, verify aggressively, and package repeated workflows. The missing piece is that none of those habits alone will stop Claude from introducing sloppiness. The setup must be built around preventing drift.
 
@@ -185,6 +186,12 @@ Why this works:
 ### Keep the root file short on purpose
 
 The official [Memory](https://code.claude.com/docs/en/memory) model supports multiple memory layers, including project memory, user memory, and more local memory. Use that. Child `CLAUDE.md` files are appropriate only when a subtree genuinely works differently. Do not create a forest of local memory files unless the repo really has distinct local rules.
+
+### Prompt caching and content stability
+
+The leaked source reveals that Claude Code uses a `SYSTEM_PROMPT_DYNAMIC_BOUNDARY` to separate static instructions from dynamic context. Everything above the boundary is cached across turns and sessions; everything below it is recomputed. The system tracks 14 distinct cache-break vectors — conditions that invalidate the cache and force expensive recomputation.
+
+This has a practical implication for `CLAUDE.md` design: content that changes frequently (recent decisions, current sprint notes, session-specific instructions) belongs in session context, skills, or task prompts — not in root memory. If you keep editing `CLAUDE.md` between sessions or within a session, you may be inadvertently breaking the prompt cache and paying full token costs on every turn. The root file should be stable. Change it when conventions genuinely change, not as a scratchpad for current work.
 
 One important nuance: community examples often use `.claude/rules/`. That may be a fine organizational convention, but it is not as strongly documented as `CLAUDE.md`, skills, hooks, settings, and permissions. Do not make your core architecture depend on undocumented assumptions about automatic rule loading. If you use `.claude/rules/`, treat it as a repository organization choice, not a magical runtime feature.
 
@@ -889,6 +896,8 @@ Use hooks to observe and enhance. Do not use them to paper over bad governance.
 
 Claude Code's permissions are one of the most annoying parts of the interactive CLI in practice. The official [settings system](https://docs.anthropic.com/en/docs/claude-code/settings) supports `allow`, `ask`, `deny`, and default permission modes, but fine-grained command matching is often brittle in real use. You allow one command shape, Claude emits a slightly different shell line, and you get prompted again anyway.
 
+The leaked source explains why this feels so heavy. Every tool call passes through a 6-layer permission pipeline: config allowlist, auto-mode classifier, coordinator gate, swarm worker gate, bash classifier, and interactive user prompt. Bash commands additionally run through 23 numbered security checks including 18 blocked Zsh builtins. This is not accidental friction — it is a deliberately deep security architecture. Understanding that helps set expectations: you are not going to outsmart 6 layers of permission logic with clever `settings.json` rules, and the occasional false prompt is a side effect of a system that is genuinely trying to be safe rather than merely annoying.
+
 Treat this as an operational annoyance, not a puzzle you must perfectly solve. In long-running interactive work, there is often no great fine-grained solution. Do not spend days trying to build a beautiful exact-match permission matrix for Bash. Claude will keep finding near-miss command lines.
 
 The practical recommendation is:
@@ -917,6 +926,12 @@ An example permissive config lives in `examples/settings.json`. The intended use
 - [Issue #9875](https://github.com/anthropics/claude-code/issues/9875)
 
 ## 9. Parallelisation
+
+### Subagent parallelism is cheaper than it looks
+
+The leaked source confirms that spawned subagents reuse the parent's prompt cache. That means running three subagents in parallel costs roughly the same in cached input tokens as running them sequentially, because they all share the expensive static portion of the system prompt. This is relevant for workflows that use the Agent tool for parallel investigation, audit, or review tasks — the cost barrier to parallelism is lower than the token math might suggest at first glance.
+
+However, subagent parallelism is still subject to the same context quality constraints as everything else. Each subagent gets a fresh context but inherits the parent's cached prompt. They do not share reasoning or discoveries with each other during execution. Design parallel subagent tasks as genuinely independent work, not as collaborative reasoning.
 
 ### Use multiple clones for interactive work
 
@@ -1024,6 +1039,8 @@ Those may be useful for specific power-user flows. This guide is not about batch
 
 The official docs are right about compaction, reset, and session management. Long sessions rot. Use fresh sessions, clear boundaries, and explicit workflow skills instead of trying to carry all project state in one conversation forever.
 
+The leaked source code confirms why mechanistically. Claude Code uses a 5-strategy compaction pipeline to manage context pressure: MicroCompact silently removes old tool outputs without API calls, AutoCompact triggers near the context limit and generates up to 20,000-token summaries with a circuit breaker that stops after 3 consecutive failures, and there are further layers for conversation summarization, session memory extraction, and oldest-message truncation. Each compaction step is a lossy compression of your session history. Early tool results, nuanced reasoning, and audit findings are progressively summarized or dropped. The longer a session runs, the more prior context has been through multiple rounds of lossy compression, and the more likely Claude is to lose track of decisions, patterns, and constraints established earlier in the conversation. This is not a hypothetical concern — it is an architectural reality of how context management works.
+
 ### Further reading
 
 - [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices)
@@ -1073,5 +1090,11 @@ That is the world-class setup for long-running projects: not the most feature-ri
 - [Claude Code + Google Stitch 2.0](https://npomfret.github.io/reading-list-researcher/2aa3ed775a7a775e.html)
 - [Sawyer Hood Announces dev-browser Hits 4k GitHub Stars](https://npomfret.github.io/reading-list-researcher/b4cbb3b860869a88.html)
 - [Superpowers repo](https://github.com/obra/superpowers)
+- [Alex Kim: The Claude Code Source Leak](https://alex000kim.com/posts/2026-03-31-claude-code-source-leak/)
+- [Sebastian Raschka: Claude Code's Real Secret Sauce Isn't the Model](https://sebastianraschka.com/blog/2026/claude-code-secret-sauce.html)
+- [Engineer's Codex: Diving into Claude Code's Source Code Leak](https://read.engineerscodex.com/p/diving-into-claude-codes-source-code)
+- [Hacker News: Claude Code source leak discussion](https://news.ycombinator.com/item?id=47586778)
+- [VentureBeat: Claude Code's source code appears to have leaked](https://venturebeat.com/technology/claude-codes-source-code-appears-to-have-leaked-heres-what-we-know)
+- [Latent.Space: AINews — The Claude Code Source Leak](https://www.latent.space/p/ainews-the-claude-code-source-leak)
 
-Use the official docs to verify what Claude Code supports. Use the research reports to understand how people are actually using it. Trust neither blindly.
+Use the official docs to verify what Claude Code supports. Use the research reports to understand how people are actually using it. The leaked source is useful for understanding internal mechanisms but should not be treated as stable API — Anthropic will likely change internals in response. Trust neither blindly.
