@@ -1,6 +1,6 @@
 # Claude Code Setup for Long-Running Projects
 
-Last verified: **April 1, 2026**
+Last verified: **April 9, 2026**
 
 This guide is for real codebases that will still matter in six months. It is not for demos, weekend prototypes, or "look what the agent can do" threads. The central problem is simple: Claude Code is useful, fast, and broad, but without structure it is a sloppy programmer. It duplicates logic, patches features into code that should have been refactored first, and slowly fills a codebase with pattern drift.
 
@@ -265,6 +265,34 @@ Use a structure like this:
 ```
 
 This design keeps the root file short while still making detailed guidance available. It also avoids relying on `.claude/rules/` semantics that may not be stable or well-documented.
+
+### External skills for web app teams
+
+For web app teams, it is useful to separate two different problems:
+
+- project-owned skills that encode your repo's workflows and conventions,
+- and imported specialist skills that help with design, framework-specific implementation, or quality review.
+
+The second category is where the ecosystem is currently strongest. The mistake is to let imported skills replace project-owned conventions. They should be overlays, not architecture.
+
+As of April 9, 2026, the highest-signal specialist skills for web app work look like this:
+
+- For visual design generation and direction, `anthropics/frontend-design` is the best official baseline. It is opinionated in the right way: it pushes distinctive layouts and stronger visual direction instead of generic SaaS filler.
+- For design review rather than generation, `vercel-labs/web-design-guidelines` is more useful. It is better at critiquing interaction, typography, accessibility, and polish than at inventing a design language from scratch.
+- For teams that want stronger community-authored visual taste, `nextlevelbuilder/ui-ux-pro-max-skill` and `ibelick/ui-skills` are the most notable current options. Treat them as explicit specialist tools because they are opinionated and can overlap with each other.
+- For React engineering, `vercel-labs/react-best-practices` is the strongest current skill. It is the clearest example of a narrow imported skill that improves implementation quality without needing to own your project's conventions.
+- For scalable component API design, `vercel-labs/composition-patterns` is a particularly good companion to the React skill because it targets a different failure mode: component surface-area drift.
+- For Next.js-specific work, `vercel-labs/next-best-practices` is the most useful framework overlay for App Router, server/client boundaries, and modern rendering behavior.
+- For post-implementation quality work, `addyosmani/web-quality-skills` is the right layer. Its value is not framework governance but shipping discipline: performance, Core Web Vitals, and quality review after the feature exists.
+
+Operationally, this suggests a simple pattern for frontend-heavy repos:
+
+- keep repo-owned skills for workflow and conventions,
+- add one visual-design specialist skill if design generation matters,
+- add one framework-quality specialist skill if React or Next.js work is frequent,
+- and avoid loading multiple overlapping taste-heavy design skills by default.
+
+That last point matters. Visual-design skills often conflict with each other more than technical skills do. If routing is too broad, Claude will blend multiple aesthetic instruction sets and produce weaker work. Pick one default design skill, not three.
 
 ### Design for self-discovery
 
@@ -1061,6 +1089,7 @@ If you want a practical default setup, use this:
    - `feature-workflow`
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`
+   - plus, for frontend-heavy teams, at most one imported visual-design specialist and one imported React or Next.js quality specialist
 3. Reference documents for detailed conventions, kept outside root memory.
 4. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
 5. A code-first MCP policy.
@@ -1068,6 +1097,8 @@ If you want a practical default setup, use this:
 7. Multiple clones, not worktrees, when parallel sessions are justified.
 
 That is the world-class setup for long-running projects: not the most feature-rich setup, not the cleverest setup, and not the most impressive screenshot. The best setup is the one that keeps Claude useful while making drift, duplication, and sloppy local choices hard to introduce.
+
+If the codebase is design-heavy, the practical default is: keep your own `frontend-conventions` skill for repo rules, then layer one external design skill such as `anthropics/frontend-design` or `vercel-labs/web-design-guidelines` when the task actually needs it. If the codebase is React- or Next-heavy, pair your internal conventions with one technical specialist such as `vercel-labs/react-best-practices`, `vercel-labs/composition-patterns`, or `vercel-labs/next-best-practices`. Do not confuse imported specialist skills with project governance.
 
 ## Primary Sources
 
@@ -1086,6 +1117,12 @@ That is the world-class setup for long-running projects: not the most feature-ri
 - [I Compared gstack, Superpowers, and Compound Engineering](https://npomfret.github.io/reading-list-researcher/e502b3549aff92cb.html)
 - [Best GitHub Repos for Claude Code That Will 10x Your Next Project in 2026](https://npomfret.github.io/reading-list-researcher/e6f4d1afbd729e56.html)
 - [Best GitHub repos for Claude code that will 10x your next project](https://npomfret.github.io/reading-list-researcher/5187cc080607fbc8.html)
+- [Anthropic Skills catalog](https://skills.sh/anthropics)
+- [Vercel Labs agent skills](https://skills.sh/vercel-labs/agent-skills)
+- [Vercel Labs next-skills](https://skills.sh/vercel-labs/next-skills)
+- [Addy Osmani web-quality-skills](https://skills.sh/addyosmani/web-quality-skills)
+- [ibelick/ui-skills](https://skills.sh/ibelick/ui-skills/ui-skills)
+- [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
 - [Best GitHub repos for Claude Code that will 10x your next project](https://npomfret.github.io/reading-list-researcher/c1aa58026580b10e.html)
 - [Claude Code + Google Stitch 2.0](https://npomfret.github.io/reading-list-researcher/2aa3ed775a7a775e.html)
 - [Sawyer Hood Announces dev-browser Hits 4k GitHub Stars](https://npomfret.github.io/reading-list-researcher/b4cbb3b860869a88.html)
