@@ -1,6 +1,6 @@
 # Claude Code Setup for Long-Running Projects
 
-Last verified: **April 9, 2026**
+Last verified: **April 12, 2026**
 
 This guide is for real codebases that will still matter in six months. It is not for demos, weekend prototypes, or "look what the agent can do" threads. The central problem is simple: Claude Code is useful, fast, and broad, but without structure it is a sloppy programmer. It duplicates logic, patches features into code that should have been refactored first, and slowly fills a codebase with pattern drift.
 
@@ -34,6 +34,7 @@ Before talking about setup, it is worth being explicit about the source material
 - The gstack/Superpowers/Compound comparison is good at separating planning, evaluation, workflow discipline, and knowledge compounding. It is less useful if taken as a required stack for every team. This guide borrows the separation-of-concerns insight and rejects the meta-framework sprawl. Source: [I Compared gstack, Superpowers, and Compound Engineering](https://npomfret.github.io/reading-list-researcher/e502b3549aff92cb.html).
 - The Superpowers repository itself is a useful primary source for three ideas this guide agrees with: common workflows should auto-route instead of relying on user memory, testing discipline should be explicit, and speculative complexity should be resisted through principles like TDD, YAGNI, and DRY. It is less useful where it prescribes a larger workflow stack and git worktree-centric execution model than many teams need. Sources: [Superpowers repo](https://github.com/obra/superpowers), [Best GitHub repos for Claude code that will 10x your next project](https://npomfret.github.io/reading-list-researcher/5187cc080607fbc8.html).
 - The three "best GitHub repos for Claude Code" reports are ecosystem signals, not setup doctrine. They help identify recurring needs such as persistent memory, design guidance, automation, and curated skills, but curation lists are not architecture. Sources: [Kshitij Mishra's list](https://npomfret.github.io/reading-list-researcher/e6f4d1afbd729e56.html), [Hasan Toor's list](https://npomfret.github.io/reading-list-researcher/5187cc080607fbc8.html), [Jahir Sheikh's list](https://npomfret.github.io/reading-list-researcher/c1aa58026580b10e.html).
+- The [`ui-ux-pro-max-skill` repository](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) is a useful primary source for what a serious imported design specialist looks like in practice: automatic UI-task routing, stack-specific guidance, explicit anti-patterns, and generated design-system scaffolding. It is useful as an overlay. It would be a mistake to treat it as a substitute for repo-owned conventions.
 - The Google Stitch workflow report is a valid example of high-value task-specific context. It is still narrow, frontend-heavy, and token-expensive. It should influence design-task setup, not the architecture of the whole Claude Code system. Source: [Claude Code + Google Stitch 2.0](https://npomfret.github.io/reading-list-researcher/2aa3ed775a7a775e.html).
 - The dev-browser report is useful as evidence that browser tooling can be valuable. It is not evidence that browser tooling should be a default reflex. Source: [Sawyer Hood Announces dev-browser Hits 4k GitHub Stars](https://npomfret.github.io/reading-list-researcher/b4cbb3b860869a88.html).
 - The changelog is essential because it proves which features actually exist now, including skill hot-reload, forked skill contexts, new hook events, memory behavior changes, and operational fixes. It is descriptive, not prescriptive. Source: [Claude Code CHANGELOG.md](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md).
@@ -275,11 +276,12 @@ For web app teams, it is useful to separate two different problems:
 
 The second category is where the ecosystem is currently strongest. The mistake is to let imported skills replace project-owned conventions. They should be overlays, not architecture.
 
-As of April 9, 2026, the highest-signal specialist skills for web app work look like this:
+As of April 12, 2026, the highest-signal specialist skills for web app work look like this:
 
 - For visual design generation and direction, `anthropics/frontend-design` is the best official baseline. It is opinionated in the right way: it pushes distinctive layouts and stronger visual direction instead of generic SaaS filler.
 - For design review rather than generation, `vercel-labs/web-design-guidelines` is more useful. It is better at critiquing interaction, typography, accessibility, and polish than at inventing a design language from scratch.
-- For teams that want stronger community-authored visual taste, `nextlevelbuilder/ui-ux-pro-max-skill` and `ibelick/ui-skills` are the most notable current options. Treat them as explicit specialist tools because they are opinionated and can overlap with each other.
+- For teams that want stronger community-authored visual direction, `nextlevelbuilder/ui-ux-pro-max-skill` is the most ambitious current option. Its real value is not just "more style"; it packages design-system generation, industry-specific reasoning rules, anti-patterns, and stack-specific UI guidance. Treat it as an explicit specialist overlay because it is strongly opinionated and can conflict with other design skills.
+- `ibelick/ui-skills` remains a notable lighter-weight community option. Treat it the same way: as a taste and implementation overlay, not as architecture.
 - For React engineering, `vercel-labs/react-best-practices` is the strongest current skill. It is the clearest example of a narrow imported skill that improves implementation quality without needing to own your project's conventions.
 - For scalable component API design, `vercel-labs/composition-patterns` is a particularly good companion to the React skill because it targets a different failure mode: component surface-area drift.
 - For Next.js-specific work, `vercel-labs/next-best-practices` is the most useful framework overlay for App Router, server/client boundaries, and modern rendering behavior.
@@ -293,6 +295,29 @@ Operationally, this suggests a simple pattern for frontend-heavy repos:
 - and avoid loading multiple overlapping taste-heavy design skills by default.
 
 That last point matters. Visual-design skills often conflict with each other more than technical skills do. If routing is too broad, Claude will blend multiple aesthetic instruction sets and produce weaker work. Pick one default design skill, not three.
+
+### External skills for Swift/iOS/macOS teams
+
+The same distinction matters for Swift teams: separate repo-owned workflow and convention skills from imported platform specialists.
+
+Paul Solt's article, [Install These Skills Before Codex Touches Your Xcode Project](https://x.com/paulsolt/status/2042716870512353294?s=46&t=z9lURX7Mfyy7xDgPrYmzog), is useful here as ecosystem signal rather than doctrine. It surfaces the current cluster of Swift specialist overlays and, more importantly, the recurring build-tooling problem: agents are much less useful in Xcode repos when build output, project configuration, and test workflows are not designed to be machine-friendly.
+
+As of April 12, 2026, the highest-signal specialist overlays for Swift/iOS/macOS work look like this:
+
+- Paul Hudson's `twostraws` skill repos are the strongest current baseline for Swift-specific guidance. The SwiftUI, concurrency, testing, and SwiftData packs are useful because they target common agent failure zones directly.
+- Antoine van der Lee's `AvdLee` skill repos cover similar ground and add an especially valuable Xcode build optimization layer. That is useful when the problem is not just code quality but slow, noisy, or brittle build loops.
+- OpenAI's [`build-ios-apps`](https://github.com/openai/plugins/tree/main/plugins/build-ios-apps) and [`build-macos-apps`](https://github.com/openai/plugins/tree/main/plugins/build-macos-apps) plugins are the strongest official examples of platform-specific overlays. They are useful for SwiftUI patterns, debugger workflows, simulator loops, packaging, signing, and other platform details that generic coding skills routinely miss.
+- Krzysztof Zablocki's rules-based Swift system is a good example of a more advanced stack overlay: broader than a single skill file, more opinionated about architecture, and explicitly designed to help agents load the right rules for the current context.
+- Paul Solt's `AppCreator` is notable not as a governance system but as a reminder that agent-friendly build and test ergonomics matter. Buildable folders, warnings as errors, centralized `Makefile` workflows, and cleaner build output reduce avoidable agent failure in Xcode-heavy repos.
+
+Operationally, the right default for Swift-heavy repos is simple:
+
+- keep repo-owned skills for architecture, workflow, and project conventions,
+- add one Swift-language or platform specialist overlay,
+- add one build-tooling overlay when Xcode build reliability is a recurring problem,
+- and avoid loading multiple overlapping SwiftUI or architecture packs by default.
+
+That last point matters for Swift for the same reason it matters for web design. If Claude loads several overlapping taste-heavy or architecture-heavy overlays, it will blend them and produce weaker work. Pick one default specialist at a time.
 
 ### Design for self-discovery
 
@@ -1090,6 +1115,7 @@ If you want a practical default setup, use this:
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`
    - plus, for frontend-heavy teams, at most one imported visual-design specialist and one imported React or Next.js quality specialist
+   - or, for Swift/iOS/macOS teams, at most one imported Swift specialist and one build-tooling overlay
 3. Reference documents for detailed conventions, kept outside root memory.
 4. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
 5. A code-first MCP policy.
@@ -1122,7 +1148,8 @@ If the codebase is design-heavy, the practical default is: keep your own `fronte
 - [Vercel Labs next-skills](https://skills.sh/vercel-labs/next-skills)
 - [Addy Osmani web-quality-skills](https://skills.sh/addyosmani/web-quality-skills)
 - [ibelick/ui-skills](https://skills.sh/ibelick/ui-skills/ui-skills)
-- [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+- [UI UX Pro Max skill repo](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+- [Paul Solt: Install These Skills Before Codex Touches Your Xcode Project](https://x.com/paulsolt/status/2042716870512353294?s=46&t=z9lURX7Mfyy7xDgPrYmzog)
 - [Best GitHub repos for Claude Code that will 10x your next project](https://npomfret.github.io/reading-list-researcher/c1aa58026580b10e.html)
 - [Claude Code + Google Stitch 2.0](https://npomfret.github.io/reading-list-researcher/2aa3ed775a7a775e.html)
 - [Sawyer Hood Announces dev-browser Hits 4k GitHub Stars](https://npomfret.github.io/reading-list-researcher/b4cbb3b860869a88.html)
