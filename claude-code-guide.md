@@ -554,6 +554,40 @@ That includes things like:
 
 The exact choices depend on the product, traffic pattern, and infrastructure, so the guide should not prescribe one universal header set. The rule is more general: when building or changing an API, Claude should not assume the job ends at the response body shape. It should either build in the relevant protocol-level behavior or explicitly ask which HTTP conventions the project expects. Otherwise it will ship narrow endpoint logic that works functionally but ignores basic industry-standard concerns until later, when they are more awkward to retrofit.
 
+Error handling deserves equally explicit guidance. Claude is unusually bad at exception discipline because its training data over-represents defensive local `try/catch` blocks that catch, log, and continue in places that should simply fail.
+
+That produces several bad outcomes:
+
+- broken state is allowed to limp forward
+- execution becomes harder to reason about
+- logs become noisy and duplicated
+- the real failure site becomes harder to locate
+
+Almost always, the safer default is fail fast:
+
+- let errors and exceptions bubble out of the guts of the system by default
+- catch exceptions at clear application boundaries, not at every available call site
+- only catch locally when the code can actually recover, translate the error meaningfully, or perform required cleanup
+- if the code cannot restore a valid state, do not catch-and-carry
+- if the project wants a different exception policy, Claude should ask rather than invent one
+
+The practical rule is simple: if something is broken, let it break loudly enough that it can be found and fixed. Silent recovery and local log-and-continue behavior often make systems less reliable, not more.
+
+Logging exceptions has its own convention. Claude often logs only the error message and discards the stack trace. That is almost always the wrong tradeoff. When an exception is logged, the stack trace is usually the most valuable part because it tells you where the problem actually happened. A message without a stack trace is often just a complaint with no location data.
+
+The triggering state is often just as important. Parameters, identifiers, and other relevant runtime context can be the difference between a fixable production failure and an untraceable mystery. When the language and platform allow it, Claude should preserve that context with the exception rather than discarding it or reducing it to a vague log line.
+
+So the convention should say:
+
+- do not strip stack traces when logging exceptions unless there is a very specific reason
+- prefer passing the original error object through structured logging or the platform's native exception logging path
+- attach the relevant runtime context or input state to the exception or structured log payload when the platform supports it
+- include enough context to reproduce or diagnose the failure, but not so much that logs become a data dump or a security problem
+- avoid logging the same exception repeatedly at multiple layers as it bubbles outward
+- log once at the boundary that is responsible for reporting, handling, or terminating the failure
+
+This is another place where Claude needs an explicit rule because its default instinct is to catch early, log a string, and keep going. That looks defensive in a diff and is often disastrous in production behavior.
+
 Formatting deserves special treatment. Claude is not reliable at preserving exact formatting conventions over time, especially in mixed-language repos or codebases with very specific style requirements. Do not rely on prose alone here. Put formatting under mechanical control.
 
 For many teams, [dprint](https://dprint.dev/) is a strong default because it is fast, multi-language, and configuration-driven. The practical pattern is:
