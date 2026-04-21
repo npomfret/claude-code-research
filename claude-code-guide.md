@@ -13,6 +13,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It copy-pastes locally convenient logic instead of finding or extracting the shared abstraction.
 - It makes the smallest possible code change even when the surrounding structure is unready for the new requirement.
 - It invents slight pattern variants because the first few files it read looked "close enough."
+- It does not reliably look around for existing patterns before starting work, so it reinvents the wheel unless explicitly told to search upstream, downstream, and laterally.
 - It sometimes over-engineers in the opposite direction by introducing speculative abstractions that the current codebase does not actually need.
 - It avoids refactoring and test-first discipline unless forced to do them.
 - It is bad at keeping code formatting consistent unless formatting is handled mechanically.
@@ -33,6 +34,7 @@ Before talking about setup, it is worth being explicit about the source material
 - The hidden-features report is good for capability discovery and weak as a setup philosophy. It surfaces `/loop`, hooks, mobile, teleportation, browser access, and slash commands, but feature discovery is not the same as codebase governance. Source: [15 Hidden and Under-Utilized Features in Claude Code](https://npomfret.github.io/reading-list-researcher/08a08a991d5e8161.html).
 - The gstack/Superpowers/Compound comparison is good at separating planning, evaluation, workflow discipline, and knowledge compounding. It is less useful if taken as a required stack for every team. This guide borrows the separation-of-concerns insight and rejects the meta-framework sprawl. Source: [I Compared gstack, Superpowers, and Compound Engineering](https://npomfret.github.io/reading-list-researcher/e502b3549aff92cb.html).
 - The Superpowers repository itself is a useful primary source for three ideas this guide agrees with: common workflows should auto-route instead of relying on user memory, testing discipline should be explicit, and speculative complexity should be resisted through principles like TDD, YAGNI, and DRY. It is less useful where it prescribes a larger workflow stack and git worktree-centric execution model than many teams need. Sources: [Superpowers repo](https://github.com/obra/superpowers), [Best GitHub repos for Claude code that will 10x your next project](https://npomfret.github.io/reading-list-researcher/5187cc080607fbc8.html).
+- Forrest Chang's [`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) repository is a useful primary source because it operationalizes recurring LLM failure modes into concise persistent guidance: think before coding, avoid silent assumptions, prefer simplicity, and define success criteria that can be verified. It is especially strong as evidence that one-time behavioral configuration beats re-explaining the same rules every session. It is weaker where "Surgical Changes" is interpreted too literally. For long-running projects, "touch only what you must" is a good brake on random collateral edits, but not a sufficient philosophy. Sometimes the correct change is a larger readiness refactor before implementation. Sources: [`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills), [Andrej Karpathy's LLM Coding Failure Patterns Converted Into a Single Configuration File Gains 3,741 Stars](https://npomfret.github.io/reading-list-researcher/7bfea976347d372e.html).
 - The three "best GitHub repos for Claude Code" reports are ecosystem signals, not setup doctrine. They help identify recurring needs such as persistent memory, design guidance, automation, and curated skills, but curation lists are not architecture. Sources: [Kshitij Mishra's list](https://npomfret.github.io/reading-list-researcher/e6f4d1afbd729e56.html), [Hasan Toor's list](https://npomfret.github.io/reading-list-researcher/5187cc080607fbc8.html), [Jahir Sheikh's list](https://npomfret.github.io/reading-list-researcher/c1aa58026580b10e.html).
 - The [`ui-ux-pro-max-skill` repository](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) is a useful primary source for what a serious imported design specialist looks like in practice: automatic UI-task routing, stack-specific guidance, explicit anti-patterns, and generated design-system scaffolding. It is useful as an overlay. It would be a mistake to treat it as a substitute for repo-owned conventions.
 - The Google Stitch workflow report is a valid example of high-value task-specific context. It is still narrow, frontend-heavy, and token-expensive. It should influence design-task setup, not the architecture of the whole Claude Code system. Source: [Claude Code + Google Stitch 2.0](https://npomfret.github.io/reading-list-researcher/2aa3ed775a7a775e.html).
@@ -56,11 +58,17 @@ The official [Best Practices](https://code.claude.com/docs/en/best-practices) do
 
 Pattern drift compounds. One new error-handling style becomes three. A second API-call shape appears because the agent patched one endpoint quickly. One feature uses a shared helper, the next writes the logic inline, and a third invents a wrapper. Six weeks later the project has inconsistent behavior, partial abstractions, and bugs that only exist in one branch of duplicated code.
 
+One practical cause of pattern drift is that Claude often does not "look around" before writing. It reads the nearest file or two, sees something that looks approximately right, and starts coding. That is not enough. A serious setup has to force a wider search before edits begin: look upstream at callers and shared abstractions, look downstream at implementations and consumers, and look laterally for similarly named files, classes, functions, and tests elsewhere in the repo. If Claude does not search broadly first, it will keep reinventing patterns that already exist.
+
 Operationally, you should treat Claude like a lazy, inexperienced, tasteless developer with a strong bias against refactoring and TDD. That sounds harsh, but it produces the correct setup instincts. You do not give that developer vague guidance and broad freedom. You give them explicit constraints, clear examples, narrow workflow rules, and approval gates around anything that expands the codebase's conceptual surface area.
 
 ### Claude has a minimum-change bias
 
 This is the most damaging bias for mature projects. When asked to add a feature, Claude usually assumes the current structure is valid and makes the minimum possible change to fit the feature in. That is fast in the moment and disastrous over time.
+
+This often shows up as shoehorning. Claude sees a request, finds the nearest place the new behavior could be squeezed in, and patches until the tests pass or the output looks plausible. That is not the same as preparing the codebase for the requirement. The result is usually a hack: more conditionals in the wrong layer, duplicated branching, awkward parameter growth, and one more special case embedded in a structure that was already bending.
+
+It also shows up as false reverence for the existing code. Claude often behaves as if the current implementation must be production-hardened, backward compatible, and preserved at all costs even when the project is brand new, has never shipped, or is obviously still in flux. That leads it to add fallbacks, compatibility layers, default values, and defensive branches that the codebase has not earned. In many early or actively evolving projects, the correct move is to change the shape cleanly rather than preserve a nonexistent legacy contract.
 
 The hidden-features report and the Boris workflow reports correctly push planning and verification, but they do not go far enough on feature readiness. A world-class setup must encode a different default:
 
@@ -70,6 +78,10 @@ The hidden-features report and the Boris workflow reports correctly push plannin
 4. Only then add the feature.
 
 If that sequence is not enforced, Claude will happily bolt new behavior onto weak foundations forever.
+
+The required posture is aggressive readiness refactoring. Not speculative redesign. Not framework invention. Refactor the current area until it is actually a clean host for the change, then implement the change. If the setup does not push Claude toward that sequence, it will keep choosing the smaller patch over the better design.
+
+Just as important, Claude should be encouraged to offer the cleaner, larger change when that is the right engineering answer. The setup should not train it to worship the smallest patch. It should train it to identify when the existing code should simply be reshaped, simplified, or replaced instead of being padded with hacks to preserve accidental behavior.
 
 ### Context rots, and naive configuration makes it worse
 
@@ -479,6 +491,69 @@ Examples:
 - Go: package layout, error wrapping, interface usage, and when helpers should stay local
 - Python: module structure, typing expectations, exception boundaries, and how side effects are isolated
 
+Frontend code deserves an explicit warning because Claude is particularly bad here. Left unguided, it will happily pour HTML, CSS, TSX, local state, helper functions, and one-off subviews into a single large component file no matter how complex the screen becomes. That is one of its default failure modes.
+
+A serious frontend convention should push in the opposite direction:
+
+- assume a non-trivial component may contain reusable or independently understandable parts
+- extract meaningful subcomponents, styles, helpers, and view-model logic into dedicated files when complexity starts to rise
+- prefer file shapes that make important UI pieces more discoverable elsewhere in the repo
+- treat extraction as a readability and maintainability tool, not just a reuse optimization
+
+The key point is not "split everything aggressively." The key point is that a growing UI file should not be Claude's resting state. Extraction has multiple benefits even before reuse happens: smaller files are easier to review, patterns are easier to discover with search, and future work is less likely to pile more logic into one oversized TSX file. If a component is becoming hard to scan, that is already enough reason to consider decomposition.
+
+Frontend semantics deserve another explicit rule: Claude is too eager to reuse visual styles by superficial appearance instead of by meaning.
+
+This usually shows up in token and class reuse. Claude sees an existing style or token with the right visual output and reuses it even when the semantic meaning is different. For example, a codebase may have a red `danger` token used for errors or destructive actions. Later, another feature may need something visually red for a completely different domain meaning. Claude will often reuse the `danger` token because the color matches, even though the meaning does not. That is the wrong abstraction.
+
+The convention should be semantic tokens first, implementation second:
+
+- name tokens and styles for what they mean, not just how they look
+- do not reuse an error or danger token for an unrelated domain concept just because the current color is similar
+- allow two semantic tokens to resolve to the same presentational value when appropriate, but keep the semantic names distinct
+- prefer domain-language naming in domain features, even when the current visual treatment overlaps with an existing utility
+
+This matters because visual coincidence is not semantic equivalence. Two concepts may share a presentational value today and need different treatments later. If the code collapses both concepts into one token, future design changes become harder and the current code becomes less legible. Claude needs explicit guidance here because its default instinct is "reuse the style that looks right," not "preserve the meaning of the UI state in the naming layer."
+
+Logging deserves to be called out explicitly because Claude is reliably bad at it. This is not just a style issue. It is a data-quality issue.
+
+Claude is trained on huge volumes of internet code, and internet logging examples are full of obsolete habits: interpolated strings, inconsistent field naming, multiline dumps, and messages that are half prose and half data. That style produces log files that are hard to filter, hard to aggregate, and unpleasant to query. A serious Claude setup should counter this with an explicit logging convention.
+
+The convention should be simple:
+
+- treat the log message as a stable event label, not a sentence template
+- never parameterize the message string with runtime values
+- put runtime values in the second argument as a structured JSON object
+- ensure the logger emits the label and the JSON payload on one line
+
+Bad:
+
+```ts
+logger.debug(`i noticed item ${foo} changing {count} times!!`)
+```
+
+Good:
+
+```ts
+logger.debug(`item change observed`, { item: foo, count })
+```
+
+This one change is disproportionately valuable. Once the pattern is applied consistently, log files stop being messy text blobs and start acting like an audit stream of application activity. They can be filtered by label, aggregated by field, and queried without brittle string parsing.
+
+If the codebase cares about observability, do not leave logging style to Claude's judgment. Write down the event-label-plus-JSON rule as a convention, add examples, and enforce it in review.
+
+APIs deserve another explicit warning. Claude often treats API work as "return the right JSON and move on," which means it forgets or postpones standard HTTP concerns that should usually be considered up front.
+
+That includes things like:
+
+- content negotiation and `Accept` handling where relevant
+- compression such as gzip or whatever transport conventions the stack already uses
+- HTTP response headers beyond the bare minimum
+- cache behavior, cache-control policy, and freshness rules
+- validators such as `ETag` and related conditional request support where appropriate
+
+The exact choices depend on the product, traffic pattern, and infrastructure, so the guide should not prescribe one universal header set. The rule is more general: when building or changing an API, Claude should not assume the job ends at the response body shape. It should either build in the relevant protocol-level behavior or explicitly ask which HTTP conventions the project expects. Otherwise it will ship narrow endpoint logic that works functionally but ignores basic industry-standard concerns until later, when they are more awkward to retrofit.
+
 Formatting deserves special treatment. Claude is not reliable at preserving exact formatting conventions over time, especially in mixed-language repos or codebases with very specific style requirements. Do not rely on prose alone here. Put formatting under mechanical control.
 
 For many teams, [dprint](https://dprint.dev/) is a strong default because it is fast, multi-language, and configuration-driven. The practical pattern is:
@@ -645,6 +720,8 @@ This is the only reliable way to stop a large existing project from getting wors
 
 Anthropic's [Best Practices](https://code.claude.com/docs/en/best-practices) and the Boris-related reports are right to emphasize planning, explicit success criteria, and verification. The missing hardening step is that planning must include readiness refactoring by default.
 
+The Karpathy-inspired guideline set is useful here for one specific reason: it correctly treats explicit success criteria as a force multiplier. "Goal-Driven Execution" is the right instinct. Claude generally performs better when the task is framed as a verifiable outcome instead of a vague imperative. The limitation is that success criteria alone do not guarantee a coherent implementation. For long-lived projects, the goal framing should be combined with the stronger workflow in this guide: audit first, refactor for readiness second, implement third, then verify against explicit criteria.
+
 For any non-trivial task, Claude should follow this sequence:
 
 1. **Audit**: inspect the existing code paths, abstractions, tests, and conventions.
@@ -654,6 +731,17 @@ For any non-trivial task, Claude should follow this sequence:
 5. **Update config**: if the work established an approved new convention or clarified an existing one, update the Claude config in the same change.
 
 That sequence should be the default behavior, not an occasional act of discipline.
+
+The key point is that "working with the smallest diff" is not the goal. Claude should assume the codebase is probably not ready for the new feature, decide what preparation is needed, do that refactor, and only then add behavior. Otherwise it will force the feature through the current shape and leave the area worse than it found it.
+
+The audit step needs to be more explicit than "read the file you plan to edit." Claude should be instructed to search for nearby and non-local precedent before touching code:
+
+- look upstream at who calls the code, constructs the object, or depends on the interface
+- look downstream at implementations, side effects, persistence, transport, and consumers
+- look laterally for similarly named files, classes, functions, hooks, services, handlers, and tests
+- search for existing patterns, field names, error shapes, and helper usage across the repo before inventing a new variant
+
+If this is not spelled out, Claude will often optimize for the local patch instead of the repository pattern. That is the mechanism behind most wheel-reinvention and a large share of long-term drift.
 
 ### Refactor for readiness, not speculative architecture
 
@@ -681,6 +769,8 @@ The feature-workflow skill should force Claude to answer these questions before 
 - What existing pattern is already present?
 - Is the current structure ready for the change?
 - What must be refactored first?
+- What would the hacky shoehorned version of this change look like, and how do we avoid it?
+- Are fallbacks, backward-compatibility shims, or default values actually required, or are we protecting a legacy contract that does not really exist?
 - What would count as introducing a new pattern?
 - Which decisions require approval?
 - What tests and checks define done?
@@ -698,6 +788,15 @@ This is better than:
 > add billing retries
 
 The official docs are correct that specificity matters. For long projects, specificity must include readiness expectations.
+
+It should also include success criteria. One of the best ideas in [`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) is to turn requests into verifiable goals instead of loose directives. In practice, the strongest prompt shape for non-trivial work is:
+
+- describe the intended outcome
+- require the audit
+- require the readiness refactor if needed
+- define the checks that prove the task is complete
+
+That gives Claude the benefits of goal-driven execution without collapsing into smallest-diff thinking.
 
 ### How Claude should communicate the plan
 
@@ -924,6 +1023,8 @@ Files legitimately need to be deleted. Directories legitimately need to be repla
 
 If you do not trust Claude to delete a file safely, the answer is not a generic blocking hook. The answer is better task instructions, better approval policy, better sandboxing, and stricter operating rules.
 
+This is worth stating more bluntly: blocking hooks are often overused because they feel like control, but they are usually a brittle form of pseudo-governance. They are easy to circumvent, easy to get wrong, and often too prescriptive about the exact command shape instead of the real engineering intent. They create friction for legitimate work while doing little to address the deeper problem.
+
 ### High-value hook examples
 
 Good hooks for this setup:
@@ -1054,7 +1155,7 @@ This is the most common large-project mistake. It comes from good intentions and
 
 ### 2. Using hooks to block normal commands
 
-This is brittle, annoying, and conceptually lazy. Hooks are for observation and enhancement. Blocking should be rare and narrow, not the main safety mechanism.
+This is brittle, easy to work around, often overly prescriptive, and conceptually lazy. Hooks are for observation and enhancement. Blocking should be rare and narrow, not the main safety mechanism.
 
 ### 3. Treating every markdown file as a "rule"
 
@@ -1063,6 +1164,10 @@ Scattered markdown is not a rules system. If Claude cannot reliably know when to
 ### 4. Letting Claude implement before it audits
 
 This is how minimum-change debt accumulates. Audit first. Refactor for readiness second. Implement third. Anything else is just faster decay.
+
+### 4a. Treating "surgical changes" as a complete philosophy
+
+Keeping diffs clean is useful. Avoiding random orthogonal edits is useful. But a blanket "touch as little as possible" rule is not enough for long-running projects. Used naively, it turns into hack preservation, fake backward compatibility, and feature shoehorning. Use surgical discipline to avoid collateral damage, not to avoid necessary refactoring.
 
 ### 5. Soft conventions
 
