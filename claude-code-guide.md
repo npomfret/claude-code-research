@@ -491,6 +491,8 @@ Examples:
 - Go: package layout, error wrapping, interface usage, and when helpers should stay local
 - Python: module structure, typing expectations, exception boundaries, and how side effects are isolated
 
+#### Frontend File Boundaries
+
 Frontend code deserves an explicit warning because Claude is particularly bad here. Left unguided, it will happily pour HTML, CSS, TSX, local state, helper functions, and one-off subviews into a single large component file no matter how complex the screen becomes. That is one of its default failure modes.
 
 A serious frontend convention should push in the opposite direction:
@@ -501,6 +503,8 @@ A serious frontend convention should push in the opposite direction:
 - treat extraction as a readability and maintainability tool, not just a reuse optimization
 
 The key point is not "split everything aggressively." The key point is that a growing UI file should not be Claude's resting state. Extraction has multiple benefits even before reuse happens: smaller files are easier to review, patterns are easier to discover with search, and future work is less likely to pile more logic into one oversized TSX file. If a component is becoming hard to scan, that is already enough reason to consider decomposition.
+
+#### Frontend Semantic Tokens
 
 Frontend semantics deserve another explicit rule: Claude is too eager to reuse visual styles by superficial appearance instead of by meaning.
 
@@ -514,6 +518,8 @@ The convention should be semantic tokens first, implementation second:
 - prefer domain-language naming in domain features, even when the current visual treatment overlaps with an existing utility
 
 This matters because visual coincidence is not semantic equivalence. Two concepts may share a presentational value today and need different treatments later. If the code collapses both concepts into one token, future design changes become harder and the current code becomes less legible. Claude needs explicit guidance here because its default instinct is "reuse the style that looks right," not "preserve the meaning of the UI state in the naming layer."
+
+#### Structured Logging
 
 Logging deserves to be called out explicitly because Claude is reliably bad at it. This is not just a style issue. It is a data-quality issue.
 
@@ -542,6 +548,8 @@ This one change is disproportionately valuable. Once the pattern is applied cons
 
 If the codebase cares about observability, do not leave logging style to Claude's judgment. Write down the event-label-plus-JSON rule as a convention, add examples, and enforce it in review.
 
+#### HTTP and API Behavior
+
 APIs deserve another explicit warning. Claude often treats API work as "return the right JSON and move on," which means it forgets or postpones standard HTTP concerns that should usually be considered up front.
 
 That includes things like:
@@ -553,6 +561,8 @@ That includes things like:
 - validators such as `ETag` and related conditional request support where appropriate
 
 The exact choices depend on the product, traffic pattern, and infrastructure, so the guide should not prescribe one universal header set. The rule is more general: when building or changing an API, Claude should not assume the job ends at the response body shape. It should either build in the relevant protocol-level behavior or explicitly ask which HTTP conventions the project expects. Otherwise it will ship narrow endpoint logic that works functionally but ignores basic industry-standard concerns until later, when they are more awkward to retrofit.
+
+#### Exceptions and Fail-Fast Behavior
 
 Error handling deserves equally explicit guidance. Claude is unusually bad at exception discipline because its training data over-represents defensive local `try/catch` blocks that catch, log, and continue in places that should simply fail.
 
@@ -573,6 +583,8 @@ Almost always, the safer default is fail fast:
 
 The practical rule is simple: if something is broken, let it break loudly enough that it can be found and fixed. Silent recovery and local log-and-continue behavior often make systems less reliable, not more.
 
+#### Exception Logging and Context
+
 Logging exceptions has its own convention. Claude often logs only the error message and discards the stack trace. That is almost always the wrong tradeoff. When an exception is logged, the stack trace is usually the most valuable part because it tells you where the problem actually happened. A message without a stack trace is often just a complaint with no location data.
 
 The triggering state is often just as important. Parameters, identifiers, and other relevant runtime context can be the difference between a fixable production failure and an untraceable mystery. When the language and platform allow it, Claude should preserve that context with the exception rather than discarding it or reducing it to a vague log line.
@@ -587,6 +599,26 @@ So the convention should say:
 - log once at the boundary that is responsible for reporting, handling, or terminating the failure
 
 This is another place where Claude needs an explicit rule because its default instinct is to catch early, log a string, and keep going. That looks defensive in a diff and is often disastrous in production behavior.
+
+#### Database Correctness and Scale
+
+Database work deserves explicit protection too. Claude often writes data-layer code as if it were manipulating a toy dataset with no concurrency, no scale, and no integrity requirements. It will forget transactions, under-specify referential rules, ignore indexing, and write query shapes that are only acceptable if the system never grows.
+
+That default is dangerous because database mistakes are not just style mistakes. They become correctness problems, operational problems, and performance problems.
+
+The convention should push Claude to assume the database matters:
+
+- consider transaction boundaries whenever a unit of work spans multiple writes or read-modify-write steps
+- preserve referential soundness with appropriate constraints, foreign keys, cascades, and deletion/update rules according to the project's data model
+- think about query shape, cardinality, and access patterns before writing database code that will run in loops or on hot paths
+- consider indexing as part of the change, not as an optional later optimization
+- ask about consistency, isolation, migration, and scale expectations when they are not clear from the existing system
+
+The exact answers depend on the stack and workload, so the guide should stay generic. The point is that Claude should not assume it is building a throwaway internal toy unless the project clearly says so. It should be pushed toward transactional correctness, referential integrity, and reasonable performance by default.
+
+This is another area where "make it work" is not enough. A change that returns the right rows in development can still be wrong if it is not transactionally sound, leaves orphaned data behind, or degrades badly under load.
+
+#### Mechanical Formatting
 
 Formatting deserves special treatment. Claude is not reliable at preserving exact formatting conventions over time, especially in mixed-language repos or codebases with very specific style requirements. Do not rely on prose alone here. Put formatting under mechanical control.
 
