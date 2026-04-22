@@ -647,11 +647,26 @@ This is another area where "make it work" is not enough. A change that returns t
 
 Formatting deserves special treatment. Claude is not reliable at preserving exact formatting conventions over time, especially in mixed-language repos or codebases with very specific style requirements. Do not rely on prose alone here. Put formatting under mechanical control.
 
+This is a practical recurring failure mode. Claude leaves behind small inconsistencies everywhere: quote style drifts, spacing changes from file to file, line wrapping becomes arbitrary, and the repo slowly accumulates formatting noise that has nothing to do with the task. Left alone, this creates review churn and makes real code changes harder to see.
+
 For many teams, [dprint](https://dprint.dev/) is a strong default because it is fast, multi-language, and configuration-driven. The practical pattern is:
 
+The exact command surface depends on the stack. Examples in this guide may use `npm run ...` because it is familiar shorthand, but the point is the shape of the workflow, not npm specifically.
+
 - define formatting policy in formatter config, not in prose
+- expose a simple formatter command or script that applies fixes directly
 - run formatting automatically on touched files after edits
 - use checks in CI or review flows to catch anything that still slips through
+
+The strongest shape is simple:
+
+- `dprint.json` defines the repo-wide formatting policy
+- a simple command or script applies formatting fixes
+- an optional check command can enforce the same policy in automation
+
+That is the right model because it removes formatting from Claude's judgment. Claude can still make the edit, but the repository, not the model, decides how the final file should look.
+
+The missing last step for many teams is a narrow post-edit hook. The hook should not try to infer intent or block work. It should run the formatter only on the file or files Claude actually touched, not across the whole repository, so formatting drift gets corrected immediately without turning a small change into a noisy repo-wide rewrite. This is exactly the kind of deterministic, low-ceremony automation hooks are good at.
 
 The goal is not to teach Claude formatting taste. The goal is to remove formatting taste as a variable.
 
