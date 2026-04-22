@@ -173,20 +173,20 @@ This is the model to use:
 - If a human-approved convention changes, update the Claude config files in the same change.
 
 ## Commands
-- Test: `pnpm test`
-- Lint: `pnpm lint`
-- Typecheck: `pnpm typecheck`
-- Format: `pnpm format`
+- Test: `<your test command>`
+- Lint or checks: `<your lint/check command>`
+- Typecheck or compile check: `<your typecheck command>`
+- Format: `<your format command>`
 
 ## Architecture Map
-- API conventions: `.claude/skills/api-conventions`
-- Frontend conventions: `.claude/skills/frontend-conventions`
-- Feature workflow: `.claude/skills/feature-workflow`
-- Config maintenance: `.claude/skills/config-maintenance`
+- Core conventions: `<path to global convention skill or reference>`
+- Subsystem conventions: `<path to subsystem-specific guidance>`
+- Feature workflow: `<path to implementation workflow skill>`
+- Config maintenance: `<path to config-maintenance guidance>`
 
 ## Dangerous Areas
-- Do not edit generated files in `src/generated/**`
-- Ask before touching deployment, billing, or auth foundation files
+- Do not edit generated files in `<generated-code paths>`
+- Ask before touching live infrastructure, security-critical code, billing, auth, or other high-blast-radius foundations
 ```
 
 Why this works:
@@ -288,39 +288,30 @@ For web app teams, it is useful to separate two different problems:
 
 The second category is where the ecosystem is currently strongest. The mistake is to let imported skills replace project-owned conventions. They should be overlays, not architecture.
 
-As of April 12, 2026, the highest-signal specialist skills for web app work look like this:
+Specialist overlays vary by ecosystem and will keep changing. The durable lesson is not "use this exact catalog." The durable lesson is:
 
-- For visual design generation and direction, `anthropics/frontend-design` is the best official baseline. It is opinionated in the right way: it pushes distinctive layouts and stronger visual direction instead of generic SaaS filler.
-- For design review rather than generation, `vercel-labs/web-design-guidelines` is more useful. It is better at critiquing interaction, typography, accessibility, and polish than at inventing a design language from scratch.
-- For teams that want stronger community-authored visual direction, `nextlevelbuilder/ui-ux-pro-max-skill` is the most ambitious current option. Its real value is not just "more style"; it packages design-system generation, industry-specific reasoning rules, anti-patterns, and stack-specific UI guidance. Treat it as an explicit specialist overlay because it is strongly opinionated and can conflict with other design skills.
-- `ibelick/ui-skills` remains a notable lighter-weight community option. Treat it the same way: as a taste and implementation overlay, not as architecture.
-- For React engineering, `vercel-labs/react-best-practices` is the strongest current skill. It is the clearest example of a narrow imported skill that improves implementation quality without needing to own your project's conventions.
-- For scalable component API design, `vercel-labs/composition-patterns` is a particularly good companion to the React skill because it targets a different failure mode: component surface-area drift.
-- For Next.js-specific work, `vercel-labs/next-best-practices` is the most useful framework overlay for App Router, server/client boundaries, and modern rendering behavior.
-- For post-implementation quality work, `addyosmani/web-quality-skills` is the right layer. Its value is not framework governance but shipping discipline: performance, Core Web Vitals, and quality review after the feature exists.
+- keep repo-owned skills for workflow and conventions
+- add specialist overlays only when they solve a real recurring weakness
+- prefer one narrowly scoped specialist per problem area over several overlapping ones
+- treat imported skills as overlays, not as the governing architecture
 
 Operationally, this suggests a simple pattern for frontend-heavy repos:
 
 - keep repo-owned skills for workflow and conventions,
-- add one visual-design specialist skill if design generation matters,
-- add one framework-quality specialist skill if React or Next.js work is frequent,
+- add one visual-design specialist if design generation matters,
+- add one framework or UI-quality specialist if that stack is common,
 - and avoid loading multiple overlapping taste-heavy design skills by default.
 
 That last point matters. Visual-design skills often conflict with each other more than technical skills do. If routing is too broad, Claude will blend multiple aesthetic instruction sets and produce weaker work. Pick one default design skill, not three.
 
 ### External skills for Swift/iOS/macOS teams
 
-The same distinction matters for Swift teams: separate repo-owned workflow and convention skills from imported platform specialists.
+The same distinction matters in any platform-specific ecosystem: separate repo-owned workflow and convention skills from imported platform specialists. The specific overlays will vary over time. What matters is the pattern:
 
-Paul Solt's article, [Install These Skills Before Codex Touches Your Xcode Project](https://x.com/paulsolt/status/2042716870512353294?s=46&t=z9lURX7Mfyy7xDgPrYmzog), is useful here as ecosystem signal rather than doctrine. It surfaces the current cluster of Swift specialist overlays and, more importantly, the recurring build-tooling problem: agents are much less useful in Xcode repos when build output, project configuration, and test workflows are not designed to be machine-friendly.
-
-As of April 12, 2026, the highest-signal specialist overlays for Swift/iOS/macOS work look like this:
-
-- Paul Hudson's `twostraws` skill repos are the strongest current baseline for Swift-specific guidance. The SwiftUI, concurrency, testing, and SwiftData packs are useful because they target common agent failure zones directly.
-- Antoine van der Lee's `AvdLee` skill repos cover similar ground and add an especially valuable Xcode build optimization layer. That is useful when the problem is not just code quality but slow, noisy, or brittle build loops.
-- OpenAI's [`build-ios-apps`](https://github.com/openai/plugins/tree/main/plugins/build-ios-apps) and [`build-macos-apps`](https://github.com/openai/plugins/tree/main/plugins/build-macos-apps) plugins are the strongest official examples of platform-specific overlays. They are useful for SwiftUI patterns, debugger workflows, simulator loops, packaging, signing, and other platform details that generic coding skills routinely miss.
-- Krzysztof Zablocki's rules-based Swift system is a good example of a more advanced stack overlay: broader than a single skill file, more opinionated about architecture, and explicitly designed to help agents load the right rules for the current context.
-- Paul Solt's `AppCreator` is notable not as a governance system but as a reminder that agent-friendly build and test ergonomics matter. Buildable folders, warnings as errors, centralized `Makefile` workflows, and cleaner build output reduce avoidable agent failure in Xcode-heavy repos.
+- keep repo-owned skills for architecture, workflow, and project conventions
+- add one platform specialist when generic guidance is not enough
+- add one build-tooling specialist when local build reliability is a recurring problem
+- avoid loading several overlapping platform packs by default
 
 Operationally, the right default for Swift-heavy repos is simple:
 
@@ -720,20 +711,20 @@ Do not write vague convention prose. Write documents that make drift obvious.
 Use this shape:
 
 ```md
-# API Error Handling Convention
+# Subsystem Error Handling Convention
 
 Applies to:
-- `apps/api/**`
+- `<path or subsystem scope>`
 
 Canonical pattern:
 - Services throw typed domain errors.
-- Route handlers translate domain errors into HTTP responses.
-- Shared helpers format error payloads.
+- Boundary handlers translate domain errors into user-facing or transport-level responses.
+- Shared helpers format any common error payload or reporting shape.
 
 Required rules:
 - Do not return ad-hoc `{ ok: false }` objects from services.
-- Do not map domain errors to HTTP inside lower-level helpers.
-- New endpoints must use the shared error translator.
+- Do not map domain errors to boundary-specific responses inside lower-level helpers.
+- New entry points must use the shared error translator.
 
 Forbidden alternatives:
 - Inline `try/catch` response shaping in each route
@@ -887,11 +878,11 @@ Claude skips straight to writing code when prompts are vague or time pressure is
 
 Use prompts that demand the preparation phase explicitly:
 
-> Add billing retries to the existing payment flow. First audit the current retry, error-handling, and job orchestration patterns. Assume the current structure may need refactoring before the feature. Stop and ask before introducing new libraries or abstractions. Only implement after explaining the readiness refactor and verification plan.
+> Add retry behavior to the existing workflow. First audit the current retry, error-handling, and orchestration patterns. Assume the current structure may need refactoring before the feature. Stop and ask before introducing new libraries or abstractions. Only implement after explaining the readiness refactor and verification plan.
 
 This is better than:
 
-> add billing retries
+> add retries
 
 The official docs are correct that specificity matters. For long projects, specificity must include readiness expectations.
 
@@ -1131,6 +1122,8 @@ If you do not trust Claude to delete a file safely, the answer is not a generic 
 
 This is worth stating more bluntly: blocking hooks are often overused because they feel like control, but they are usually a brittle form of pseudo-governance. They are easy to circumvent, easy to get wrong, and often too prescriptive about the exact command shape instead of the real engineering intent. They create friction for legitimate work while doing little to address the deeper problem.
 
+If the goal is to allow or deny classes of behavior, `settings.json` is the correct place to express that policy. Hooks are the wrong tool for access control. Use hooks for deterministic side effects and auditability; use settings and sandbox policy for permissions.
+
 ### High-value hook examples
 
 Good hooks for this setup:
@@ -1138,13 +1131,13 @@ Good hooks for this setup:
 - `SessionStart`: print a short reminder to use convention skills and the feature workflow for non-trivial changes.
 - `PostToolUse`: append command and file-change logs to an audit file.
 - post-edit side effect: run a targeted formatter or linter on touched files.
-- formatting hook: reformat every touched file with `dprint` so Claude's inconsistent formatting does not accumulate in the repo.
+- formatting hook: reformat every touched file with the project's formatter so Claude's inconsistent formatting does not accumulate in the repo.
 - `Stop`: write a short task summary or emit a notification.
 - multi-agent events from recent changelog additions: record task completion or teammate idle state if you use multi-agent workflows.
 
 Keep them fast, deterministic, and visible.
 
-If you want one concrete default, prefer formatting touched files with `dprint` rather than asking Claude to keep style consistent from memory. `dprint` is fast enough to fit well into post-edit automation, supports multiple languages, and is built for config-driven formatting. Run it narrowly on changed files, not as a whole-repo sweep after every small edit.
+If you want one concrete default, prefer formatting touched files with the project's formatter rather than asking Claude to keep style consistent from memory. A fast config-driven formatter such as `dprint` works well for this. Run it narrowly on changed files, not as a whole-repo sweep after every small edit.
 
 ### Why blocking hooks are worse than they look
 
@@ -1163,6 +1156,7 @@ Treat this as an operational annoyance, not a puzzle you must perfectly solve. I
 The practical recommendation is:
 
 - prefer broad, boring permission settings over clever command-specific ones
+- express allow/deny behavior in `settings.json`, not in hooks
 - rely on `CLAUDE.md`, skills, hooks, git, tests, and review for behavioral control
 - use sandboxing and repo rules for the things that truly matter
 - if you are working interactively all day, a very permissive local `settings.json` is often the least bad option
@@ -1207,10 +1201,10 @@ Why:
 Set up sibling clones like this:
 
 ```text
-~/src/project-main
-~/src/project-api-refactor
-~/src/project-ui-fix
-~/src/project-review
+<workspace>/project-main
+<workspace>/project-task-a
+<workspace>/project-task-b
+<workspace>/project-review
 ```
 
 One clone, one task, one Claude session.
@@ -1325,8 +1319,7 @@ If you want a practical default setup, use this:
    - `feature-workflow`
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`
-   - plus, for frontend-heavy teams, at most one imported visual-design specialist and one imported React or Next.js quality specialist
-   - or, for Swift/iOS/macOS teams, at most one imported Swift specialist and one build-tooling overlay
+   - optionally, one imported specialist per genuinely distinct problem area
 3. Reference documents for detailed conventions, kept outside root memory.
 4. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
 5. A code-first MCP policy.
@@ -1335,7 +1328,7 @@ If you want a practical default setup, use this:
 
 That is the world-class setup for long-running projects: not the most feature-rich setup, not the cleverest setup, and not the most impressive screenshot. The best setup is the one that keeps Claude useful while making drift, duplication, and sloppy local choices hard to introduce.
 
-If the codebase is design-heavy, the practical default is: keep your own `frontend-conventions` skill for repo rules, then layer one external design skill such as `anthropics/frontend-design` or `vercel-labs/web-design-guidelines` when the task actually needs it. If the codebase is React- or Next-heavy, pair your internal conventions with one technical specialist such as `vercel-labs/react-best-practices`, `vercel-labs/composition-patterns`, or `vercel-labs/next-best-practices`. Do not confuse imported specialist skills with project governance.
+If the codebase has repeated specialist needs, the practical default is: keep your own convention skills for repo rules, then layer one external specialist only when the task actually needs it. Do not confuse imported specialist skills with project governance.
 
 ## Primary Sources
 
