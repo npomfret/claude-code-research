@@ -328,6 +328,8 @@ Assume the user will often forget which skill, rule, or agent exists. The setup 
 
 That means common workflows must be designed so Claude can discover and route to them automatically from ordinary task wording. If a recurring workflow only works when the human remembers a specific slash command or exact skill name, the setup is underspecified.
 
+This needs to be stated plainly: if you want Claude to use any part of the Claude-side file surface unprompted — root `CLAUDE.md`, local `CLAUDE.md` files, skills, agent definitions, reference documents, settings-adjacent guidance, or other repo-owned Claude config files — it is not enough for those files to merely exist somewhere in the repository. They have to be discoverable. In practice that means each important file needs a clear routing path through root `CLAUDE.md`, skill metadata, agent descriptions, local scope boundaries, or another explicit entry point Claude can infer from normal task wording. Orphaned markdown is not a discoverability strategy.
+
 Use these rules:
 
 - Give skills names and `description` fields that match real task language such as "feature workflow", "API conventions", or "bug investigation", not internal jargon.
