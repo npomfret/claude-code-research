@@ -206,7 +206,7 @@ The leaked source reveals that Claude Code uses a `SYSTEM_PROMPT_DYNAMIC_BOUNDAR
 
 This has a practical implication for `CLAUDE.md` design: content that changes frequently (recent decisions, current sprint notes, session-specific instructions) belongs in session context, skills, or task prompts — not in root memory. If you keep editing `CLAUDE.md` between sessions or within a session, you may be inadvertently breaking the prompt cache and paying full token costs on every turn. The root file should be stable. Change it when conventions genuinely change, not as a scratchpad for current work.
 
-One important nuance: community examples often use `.claude/rules/`. That may be a fine organizational convention, but it is not as strongly documented as `CLAUDE.md`, skills, hooks, settings, and permissions. Do not make your core architecture depend on undocumented assumptions about automatic rule loading. If you use `.claude/rules/`, treat it as a repository organization choice, not a magical runtime feature.
+One important nuance: `.claude/rules/` is now part of the official memory and rules surface, so it is a legitimate tool for modularizing always-on or path-scoped instructions. The same architectural caution still applies: do not treat a rules folder as the whole system. Use it as one layer alongside root `CLAUDE.md`, skills, hooks, settings, and reference files. The important question is still whether each instruction lives in the correct layer and is loaded when needed.
 
 ### Further reading
 
@@ -223,11 +223,15 @@ One important nuance: community examples often use `.claude/rules/`. That may be
 The ecosystem uses the word "rules" too loosely. For a long-lived project, separate the layers:
 
 - `CLAUDE.md`: always-on operating contract and routing.
+- `.claude/rules/`: persistent always-on or path-scoped standing instructions.
 - Skills: reusable, on-demand workflows and scoped instruction packages.
 - Reference files: detailed conventions, subsystem notes, and examples used by skills.
 - Hooks and tooling: enforcement, logging, and side effects.
+- `settings.json`: allow/deny behavior, permission posture, and related access policy.
 
 The official [Skills](https://code.claude.com/docs/en/skills) docs are the strongest source here. Anthropic treats skills as the right way to package workflows and reusable context. The changelog confirms this surface is active and improving, including skill hot-reload and forked execution contexts in `2.1.0`.
+
+Rules deserve first-class treatment in this architecture. They are the right home for standing instructions that should load automatically all the time or automatically for a subtree. Skills are different: they are better for task-shaped workflows, investigation flows, and reusable procedures that Claude should invoke based on intent. Reference files are different again: they hold detail that supports a rule or skill without needing to load constantly.
 
 ### What a skill should do
 
@@ -256,6 +260,10 @@ Use a structure like this:
 
 ```text
 .claude/
+  rules/
+    global.md
+    api.md
+    frontend.md
   skills/
     feature-workflow/
       SKILL.md
@@ -277,7 +285,7 @@ Use a structure like this:
     post-edit-check.sh
 ```
 
-This design keeps the root file short while still making detailed guidance available. It also avoids relying on `.claude/rules/` semantics that may not be stable or well-documented.
+This design keeps the root file short while still making detailed guidance available. It also avoids collapsing the whole architecture into either one giant root file or one giant rules folder when different instruction types belong in different layers.
 
 ### External skills for web app teams
 
@@ -330,13 +338,17 @@ That means common workflows must be designed so Claude can discover and route to
 
 This needs to be stated plainly: if you want Claude to use any part of the Claude-side file surface unprompted — root `CLAUDE.md`, local `CLAUDE.md` files, skills, agent definitions, reference documents, settings-adjacent guidance, or other repo-owned Claude config files — it is not enough for those files to merely exist somewhere in the repository. They have to be discoverable. In practice that means each important file needs a clear routing path through root `CLAUDE.md`, skill metadata, agent descriptions, local scope boundaries, or another explicit entry point Claude can infer from normal task wording. Orphaned markdown is not a discoverability strategy.
 
+Rules fit into this discoverability model too. A rule is discoverable when Claude can load it automatically because of its always-on scope or its path scope. That is exactly why rules are useful: they make standing guidance discoverable without requiring the user to remember an invocation step.
+
 Use these rules:
 
 - Give skills names and `description` fields that match real task language such as "feature workflow", "API conventions", or "bug investigation", not internal jargon.
+- Use `when_to_use` when needed to add trigger phrases or example requests without bloating the core description.
 - State both when to use the skill and when not to use it. Overlapping skills reduce routing reliability.
 - Keep high-frequency skills narrow and obvious so Claude can confidently auto-select them.
 - Keep rare or heavy workflows explicit. Automatic routing should cover common cases, not every possible case.
 - Put routing hints in root `CLAUDE.md` so Claude is told to locate the applicable convention or workflow skill before editing.
+- Use path scoping when a skill should auto-load only for specific parts of the repo instead of everywhere.
 - Write reference docs to support a skill, not to act as orphaned markdown that Claude might never load.
 - If you use custom agents or subagents, define them around distinct jobs Claude can infer, such as `repo-audit`, `ui-review`, or `migration-check`, not vague labels like `engineer` or `helper`.
 - If Claude repeatedly misses a relevant skill, fix the skill metadata, split overlapping skills, or rename the skill. Do not solve repeated routing failures by telling the user to remember more commands.
@@ -348,10 +360,11 @@ The design target is simple: for common task types, the user should be able to a
 When a skill or agent is meant to be discovered automatically, use this checklist:
 
 - Name it with words a developer would actually say in a request, not team-internal jargon.
-- Put likely trigger phrases in the description such as "bug fix", "feature work", "API change", "review diff", or "database migration".
+- Put likely trigger phrases in the description or `when_to_use` text such as "bug fix", "feature work", "API change", "review diff", or "database migration".
 - Include anti-triggers in the description so Claude knows when not to use it.
 - Keep one skill focused on one job. If the description needs a long "and also", it is probably two skills.
 - Prefer one obvious skill for a common task type over three partially overlapping skills.
+- Add `paths` when the skill should auto-route only for certain files or directories.
 - Test routing with several natural prompts a real user might type. If Claude does not reliably pick the intended skill, rename it or tighten the description.
 - If a skill is important but easy to miss, add a routing reminder in root `CLAUDE.md`.
 - If a workflow is rare, expensive, or risky, do not force automatic routing just because it is possible.
@@ -359,7 +372,7 @@ When a skill or agent is meant to be discovered automatically, use this checklis
 
 ### How to write a skill
 
-A good skill is concise, narrow, and action-oriented. The official skills docs are right that routing quality depends heavily on the `description`, invocation settings, and tool boundaries. The changelog is also relevant here because it confirms skills can hot-reload and use `context: fork`, which makes them more practical for iterative team use.
+A good skill is concise, narrow, and action-oriented. The official skills docs are right that routing quality depends heavily on the `description`, optional `when_to_use`, invocation settings, optional path scoping, and tool boundaries. The changelog is also relevant here because it confirms skills can hot-reload and use `context: fork`, which makes them more practical for iterative team use.
 
 Example:
 
@@ -401,14 +414,17 @@ Require explicit invocation for:
 - migration playbooks,
 - experimental or risky workflows.
 
-The official skill frontmatter supports this distinction. Use it. Keep the auto-routed surface small and sharp.
+The official skill frontmatter supports this distinction through fields such as `disable-model-invocation`, `user-invocable`, `when_to_use`, and `paths`. Use it. Keep the auto-routed surface small and sharp.
 
 ### What a "rule" should mean in practice
 
 In this guide, a rule is not a random text file. A rule is a load-bearing instruction with a clear home:
 
 - always-on and universal: root `CLAUDE.md`,
-- scoped and discoverable: skill plus reference file,
+- always-on or path-scoped standing guidance: `.claude/rules/`,
+- scoped and task-shaped: skill plus reference file,
+- detailed but supporting: reference docs,
+- allow/deny and permission posture: `settings.json`,
 - mechanically enforced: hook, script, or test.
 
 That definition matters because it prevents the common failure where teams scatter instructions across markdown files and hope Claude infers the right one at the right time.
@@ -421,15 +437,21 @@ Example:
 
 - Root rule in `CLAUDE.md`:
   - "Never introduce a new dependency or abstraction without explicit approval."
+- Path-scoped standing rule in `.claude/rules/`:
+  - "In `<subsystem path>`, use the shared error translation pattern and do not invent local response shapes."
 - Scoped rule in a convention doc or skill:
-  - "In `apps/api/**`, services throw typed domain errors and route handlers translate them. Do not return ad-hoc `{ ok: false }` objects."
+  - "For this task type, audit -> refactor -> implement -> verify."
+- Permission rule in `settings.json`:
+  - "This command family is allowed, this one must ask, and this one is denied."
 - Enforced rule in tooling:
   - "Touched API packages must pass their targeted test command before the task is complete."
 
 Those are all rules, but they are different kinds of rules:
 
 - routing or operating rules belong in root memory
-- local behavioral rules belong in convention docs and the skills that load them
+- standing scoped behavior belongs in `.claude/rules/`
+- task-shaped behavioral rules belong in skills and the reference docs that support them
+- permission policy belongs in `settings.json`
 - non-negotiable completion or enforcement rules belong in hooks, tests, or scripts
 
 This is why the guide does not treat `.claude/rules/` as the center of the architecture. The important question is not "do we have a rules folder?" The important question is "does each rule live in the correct layer, and will Claude reliably encounter it when needed?"
@@ -1316,17 +1338,19 @@ The leaked source code confirms why mechanistically. Claude Code uses a 5-strate
 If you want a practical default setup, use this:
 
 1. A short root `CLAUDE.md` that encodes non-negotiables and routes to deeper guidance.
-2. A small skill set:
+2. A small rules set for always-on global and path-scoped standing instructions.
+3. A small skill set:
    - `conventions-global`
    - `feature-workflow`
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`
    - optionally, one imported specialist per genuinely distinct problem area
-3. Reference documents for detailed conventions, kept outside root memory.
-4. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
-5. A code-first MCP policy.
-6. A hard stop-and-ask rule for any new dependency, pattern, abstraction, or convention gap.
-7. Multiple clones, not worktrees, when parallel sessions are justified.
+4. Reference documents for detailed conventions, kept outside root memory.
+5. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
+6. `settings.json` for allow/deny behavior and permission posture.
+7. A code-first MCP policy.
+8. A hard stop-and-ask rule for any new dependency, pattern, abstraction, or convention gap.
+9. Multiple clones, not worktrees, when parallel sessions are justified.
 
 That is the world-class setup for long-running projects: not the most feature-rich setup, not the cleverest setup, and not the most impressive screenshot. The best setup is the one that keeps Claude useful while making drift, duplication, and sloppy local choices hard to introduce.
 
