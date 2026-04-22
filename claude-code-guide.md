@@ -519,6 +519,31 @@ The convention should be semantic tokens first, implementation second:
 
 This matters because visual coincidence is not semantic equivalence. Two concepts may share a presentational value today and need different treatments later. If the code collapses both concepts into one token, future design changes become harder and the current code becomes less legible. Claude needs explicit guidance here because its default instinct is "reuse the style that looks right," not "preserve the meaning of the UI state in the naming layer."
 
+#### Site-Wide Semantic Constants
+
+Claude is also bad at centralizing site-wide UI semantics. Even when a product clearly has repeated layout and presentation rules, it tends to scatter them across components instead of establishing a single semantic layer that the rest of the interface can depend on.
+
+This problem is much broader than colors and fonts. The centralized layer often needs to cover:
+
+- semantic typography
+- spacing and layout rhythm
+- borders, strokes, and separators
+- corner radii and surface treatments
+- elevation and shadow rules
+- icon and emoji semantics
+- motion, animation, and reaction patterns
+- reusable state styles
+- and any other visual primitive that should remain consistent across the site or app
+
+The convention should be to define these things in one intentional place whenever they are site-wide concerns. If they are scattered across individual components, even a straightforward reskin or brand refresh becomes expensive because the semantics were never separated from the local implementation.
+
+Done correctly, this pays off twice:
+
+- day-to-day UI work becomes more consistent because Claude has one canonical place to follow
+- large-scale visual changes become much cheaper because the semantic layer can change without rewriting every component by hand
+
+Claude needs explicit pressure here because its default instinct is local convenience. It will happily inline spacing values, duplicate border styles, pick ad hoc icon treatments, and repeat animation choices file by file unless the project establishes a central semantic system and tells it to use it.
+
 #### Structured Logging
 
 Logging deserves to be called out explicitly because Claude is reliably bad at it. This is not just a style issue. It is a data-quality issue.
