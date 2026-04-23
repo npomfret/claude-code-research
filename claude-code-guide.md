@@ -506,6 +506,42 @@ Examples:
 - Go: package layout, error wrapping, interface usage, and when helpers should stay local
 - Python: module structure, typing expectations, exception boundaries, and how side effects are isolated
 
+#### Type Safety as a Design Tool
+
+Claude is also too lazy about type safety in languages and codebases that support it well. Its default behavior is often to satisfy the immediate local problem with weaker typing than the codebase should tolerate: loose shapes, partial typing, untyped boundaries, `any`-style escapes, or values that could have been made precise but were left vague to get the task over the line.
+
+That is backwards. In typed codebases, strong type information is one of the main tools that keeps drift, ambiguity, and bugs under control. Good teams treat type safety like a useful virus: once a part of the system is made precise, that precision should spread outward through the surrounding code instead of stopping at one file boundary.
+
+The convention should push Claude toward that posture:
+
+- add types aggressively in typed languages instead of treating them as optional polish
+- tighten types at boundaries and let that precision propagate through the call graph
+- prefer making invalid states unrepresentable when the language and design make that practical
+- use the compiler as a design assistant and verification tool, not as an obstacle to work around
+- avoid lazy escape hatches unless there is a clear, deliberate reason and the project accepts it
+
+The important mindset is that the compiler is helping. If a type-safe language or codebase gives you a chance to let the type system carry more of the correctness burden, Claude should normally take that chance. Otherwise it leaves the project with the worst of both worlds: the ceremony of a typed codebase and the safety level of an untyped one.
+
+#### Abstractions, Encapsulation, and the Helper Smell
+
+Claude is also too eager to throw "helpers" at a design problem. That is one of its laziest habits. Instead of stepping back, examining the shape of the code, and improving the owning abstraction, it will often patch over the discomfort by adding another helper function, wrapper, or utility file near the problem.
+
+That usually means one of two things:
+
+- the design was not ready for the new requirement and should have been refactored first
+- the abstraction boundary is wrong and Claude chose a convenience patch instead of fixing it
+
+Helpers are not forbidden. The problem is helper-first thinking. When helpers become the default response, they are often a sign that corners were cut and encapsulation was not taken seriously enough.
+
+The convention should push Claude toward the harder-looking but usually better move:
+
+- look at the owning abstraction before adding a helper beside it
+- improve encapsulation at the real boundary instead of scattering utility logic around the edges
+- refactor the structure until the new behavior has an obvious home
+- treat a new helper as a choice that needs justification, not as the automatic safe option
+
+In practice, code is almost never "already ready" for the next requirement. It has to be grown into readiness through repeated inspection and refactoring. Claude should be trained to look, consider, design, and refactor before it writes the next line of implementation code. Throwing a helper at the problem is often just a way to avoid that work.
+
 #### Frontend File Boundaries
 
 Frontend code deserves an explicit warning because Claude is particularly bad here. Left unguided, it will happily pour HTML, CSS, TSX, local state, helper functions, and one-off subviews into a single large component file no matter how complex the screen becomes. That is one of its default failure modes.
@@ -846,7 +882,7 @@ The Karpathy-inspired guideline set is useful here for one specific reason: it c
 For any non-trivial task, Claude should follow this sequence:
 
 1. **Audit**: inspect the existing code paths, abstractions, tests, and conventions.
-2. **Refactor for readiness**: fix weak abstractions, duplication, naming drift, or structural issues first.
+2. **Refactor for readiness**: fix weak abstractions, duplication, naming drift, helper creep, or structural issues first.
 3. **Implement**: add the feature on top of the prepared structure.
 4. **Verify**: run the targeted checks, inspect output, and confirm the task against the stated success criteria.
 5. **Update config**: if the work established an approved new convention or clarified an existing one, update the Claude config in the same change.
@@ -854,6 +890,8 @@ For any non-trivial task, Claude should follow this sequence:
 That sequence should be the default behavior, not an occasional act of discipline.
 
 The key point is that "working with the smallest diff" is not the goal. Claude should assume the codebase is probably not ready for the new feature, decide what preparation is needed, do that refactor, and only then add behavior. Otherwise it will force the feature through the current shape and leave the area worse than it found it.
+
+That includes resisting the lazy helper patch. If the first idea is "add another helper," Claude should stop and ask whether the real problem is missing encapsulation or an abstraction that needs to be reshaped first.
 
 The audit step needs to be more explicit than "read the file you plan to edit." Claude should be instructed to search for nearby and non-local precedent before touching code:
 
