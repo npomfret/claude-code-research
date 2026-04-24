@@ -542,6 +542,21 @@ The convention should push Claude toward the harder-looking but usually better m
 
 In practice, code is almost never "already ready" for the next requirement. It has to be grown into readiness through repeated inspection and refactoring. Claude should be trained to look, consider, design, and refactor before it writes the next line of implementation code. Throwing a helper at the problem is often just a way to avoid that work.
 
+#### Duplication, Redundancy, and the Code Tax
+
+Claude also needs explicit pressure against leaving extra code behind. It often misses an existing implementation and re-creates it, or it completes a refactor but leaves the old path, wrapper, branch, helper, or partially superseded code lying around "just in case."
+
+That is not harmless. Every line of code carries a maintenance cost. Every duplicate branch, redundant wrapper, stale helper, and unused file increases the code tax the team has to pay forever after.
+
+The convention should be simple:
+
+- prefer less code when less code preserves the intended behavior
+- when replacing a code path, remove the old one unless there is a real compatibility reason not to
+- do not leave dead code, unused helpers, redundant branches, or superseded implementations behind after a change
+- if Claude finds existing code that already solves the problem, it should reuse or consolidate it instead of reimplementing it nearby
+
+Almost always, less code is better than more code that does the same job. The burden of proof should be on keeping the extra code, not on deleting it.
+
 #### Frontend File Boundaries
 
 Frontend code deserves an explicit warning because Claude is particularly bad here. Left unguided, it will happily pour HTML, CSS, TSX, local state, helper functions, and one-off subviews into a single large component file no matter how complex the screen becomes. That is one of its default failure modes.
@@ -1339,23 +1354,27 @@ Statements like "prefer consistency" or "reuse existing patterns when possible" 
 
 This is one of the main ways long-lived codebases become conceptually bloated. Every new dependency and abstraction expands the maintenance surface. Claude must never do this silently.
 
-### 7. Speculative abstractions and premature frameworks
+### 7. Leaving dead, redundant, or superseded code behind
+
+This is another form of drift. Claude finishes the new path and leaves the old one in place, keeps an unused helper "for later," or preserves duplicate logic after an extraction because deleting it feels riskier than leaving it. That is how maintenance cost quietly compounds. Code has a tax. If code is no longer needed, it should usually be removed.
+
+### 8. Speculative abstractions and premature frameworks
 
 This is the mirror-image failure mode of minimum-change patching. Claude sees a messy area and jumps straight to a big reusable system that the current codebase has not earned yet. That is how you get abstraction layers with one caller, configuration systems for one case, and framework-shaped code around a single current requirement. Refactor for readiness. Do not build for imaginary future complexity.
 
-### 8. Indiscriminate MCP use
+### 9. Indiscriminate MCP use
 
 If Claude can answer from code and tests, it should stay there. Browser-first and tool-first debugging are easy ways to waste context and time.
 
-### 9. Treating repo or tool lists as architecture guidance
+### 10. Treating repo or tool lists as architecture guidance
 
 The ecosystem curation posts are useful for discovering tools. They are not substitutes for a setup philosophy. A list of five good repos does not tell you how to govern a growing codebase.
 
-### 10. Using worktrees and `--bare` as the default interactive model
+### 11. Using worktrees and `--bare` as the default interactive model
 
 Those may be useful for specific power-user flows. This guide is not about batch pipelines or agent farms. For interactive coding on long-running projects, multiple clones are simpler and more robust.
 
-### 11. Keeping one endless session alive
+### 12. Keeping one endless session alive
 
 The official docs are right about compaction, reset, and session management. Long sessions rot. Use fresh sessions, clear boundaries, and explicit workflow skills instead of trying to carry all project state in one conversation forever.
 
