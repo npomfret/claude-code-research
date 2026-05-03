@@ -21,6 +21,10 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It follows whatever context is most visible, which means bloated root memory and poorly routed guidance actively make it worse.
 - It reaches for tools, MCPs, or browser automation before exhausting code-level investigation if those tools are available.
 - It misses reusable workflow instructions when they are not designed to be automatically discoverable from the user's wording.
+- It answers broad review questions from representative samples, then sounds more comprehensive than the evidence supports.
+- It checks whether values are reused without checking whether names carry stable semantic meaning.
+- It treats UI code like prototype presentation work instead of durable product architecture with contracts, naming semantics, and long-term maintenance cost.
+- It treats visible styling as "consistent enough" while missing drift across containers, typography, spacing, borders, corners, shadows, icons, and feedback states.
 
 The rest of this guide exists to suppress those failure modes structurally rather than hoping Claude behaves better on its own.
 
@@ -561,12 +565,15 @@ Almost always, less code is better than more code that does the same job. The bu
 
 Frontend code deserves an explicit warning because Claude is particularly bad here. Left unguided, it will happily pour HTML, CSS, TSX, local state, helper functions, and one-off subviews into a single large component file no matter how complex the screen becomes. That is one of its default failure modes.
 
+The deeper issue is that Claude often does not respect UI code as architecture. It treats frontend work like prototype presentation glue: get the screen to look roughly right, put the CSS near the component that needs it, and move on. That is the wrong posture for a real product. UI code has contracts just like backend code: component APIs, design tokens, semantic naming, accessibility behavior, responsive layout rules, interaction states, loading and error states, and brand consistency. A local CSS value or one-off TSX shape is not harmless just because it is visual. It becomes part of the product's language.
+
 A serious frontend convention should push in the opposite direction:
 
 - assume a non-trivial component may contain reusable or independently understandable parts
 - extract meaningful subcomponents, styles, helpers, and view-model logic into dedicated files when complexity starts to rise
 - prefer file shapes that make important UI pieces more discoverable elsewhere in the repo
 - treat extraction as a readability and maintainability tool, not just a reuse optimization
+- treat styling, layout, and interaction patterns as durable product infrastructure, not as disposable prototype code
 
 The key point is not "split everything aggressively." The key point is that a growing UI file should not be Claude's resting state. Extraction has multiple benefits even before reuse happens: smaller files are easier to review, patterns are easier to discover with search, and future work is less likely to pile more logic into one oversized TSX file. If a component is becoming hard to scan, that is already enough reason to consider decomposition.
 
@@ -866,6 +873,8 @@ Run focused audits by concern:
 - async orchestration,
 - test layout,
 - frontend state,
+- design-system coverage,
+- UI semantic naming,
 - service abstraction boundaries.
 
 For each concern:
@@ -878,6 +887,8 @@ For each concern:
 6. then make future work follow it.
 
 This is the only reliable way to stop a large existing project from getting worse.
+
+UI audits need special care because Claude is prone to doing a plausible sample pass and then overstating the result. For design-system questions, require category-complete scans before accepting a verdict. The audit should cover containers, boxes, panels, typography, spacing, borders, separators, corners, shadows, surfaces, icons, controls, colours, loading states, empty states, and error states. It should also distinguish four different things that Claude often blends together: raw values, centralised tokens, semantic tokens, and shared components. A value being tokenised is not enough. The token or component name should encode stable intent or domain meaning, not just current appearance. `danger`, `surface-panel`, `separator-subtle`, and `points-high` are semantic. `red`, `box2`, `border-light`, `canvas-2`, and `ink-2` are weaker unless the project has explicitly documented what they mean.
 
 ### Further reading
 
@@ -1349,6 +1360,8 @@ Keeping diffs clean is useful. Avoiding random orthogonal edits is useful. But a
 ### 5. Soft conventions
 
 Statements like "prefer consistency" or "reuse existing patterns when possible" are not enough. Conventions must say what the canonical pattern is, what alternatives are forbidden, and when Claude must stop and ask.
+
+This is especially true for reviews. Claude will often interpret "check everything" as "check enough examples to form an impression." Broad audits need an explicit checklist and a requirement to state scope, gaps, and evidence. If the user asks whether UI foundations are centralised, the setup should force Claude to check every named category and to report whether each category has semantic definitions, not just shared-looking values.
 
 ### 6. Silent introduction of new dependencies or abstractions
 
