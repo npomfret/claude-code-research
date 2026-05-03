@@ -1,6 +1,4 @@
-# Claude Code Setup for Long-Running Projects
-
-Last verified: **April 12, 2026**
+# Claude Code Guide for Non-Trivial & Long-Running Projects
 
 This guide is for real codebases that will still matter in six months. It is not for demos, weekend prototypes, or "look what the agent can do" threads. The central problem is simple: Claude Code is useful, fast, and broad, but without structure it is a sloppy programmer. It duplicates logic, patches features into code that should have been refactored first, and slowly fills a codebase with pattern drift.
 
@@ -576,6 +574,14 @@ A serious frontend convention should push in the opposite direction:
 - treat styling, layout, and interaction patterns as durable product infrastructure, not as disposable prototype code
 
 The key point is not "split everything aggressively." The key point is that a growing UI file should not be Claude's resting state. Extraction has multiple benefits even before reuse happens: smaller files are easier to review, patterns are easier to discover with search, and future work is less likely to pile more logic into one oversized TSX file. If a component is becoming hard to scan, that is already enough reason to consider decomposition.
+
+#### Application Primitives
+
+Claude is reluctant to create application primitives. It often treats a repeated UI shape as "just styling" and patches the current screen locally instead of extracting the shared product concept. A serious setup should push the opposite direction: when containers, panels, buttons, icon buttons, modals, drawers, separators, warnings, empty states, loading states, clickable rows, tabs, chips, or badges recur across the app, Claude should consider whether the right move is a named primitive with a semantic API.
+
+These primitives are not premature abstraction when the product already repeats the concept. They are how the application preserves UI/UX consistency, accessibility behavior, responsive behavior, interaction states, and future design flexibility. A local button style or one-off warning box may look cheaper in the current diff, but it teaches Claude and future contributors that the product language is optional.
+
+The setup should name this explicitly. Use terms like `application primitives`, `product UI primitives`, or `design-system primitives`, and define where they live. The important part is not the label. The important part is that repeated UI behavior gets a stable home instead of being recreated screen by screen.
 
 #### Frontend Semantic Tokens
 
