@@ -4,6 +4,22 @@ This guide is for real codebases that will still matter in six months. It is not
 
 Anthropic's official documentation is the source of truth for what Claude Code can do: [Best Practices](https://code.claude.com/docs/en/best-practices), [Memory](https://code.claude.com/docs/en/memory), [Skills](https://code.claude.com/docs/en/skills), [Hooks](https://code.claude.com/docs/en/hooks), [MCP](https://code.claude.com/docs/en/mcp), [Commands](https://code.claude.com/docs/en/commands), [CLI Reference](https://code.claude.com/docs/en/cli-reference), [Settings](https://docs.anthropic.com/en/docs/claude-code/settings), and the [Claude Code changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md). The research reports in the reading-list index are useful as evidence of how people are using the tool in practice, but they are not authoritative. Several of them are good at surfacing mechanisms and bad at describing what scales.
 
+## Operating Ethos
+
+The trick to getting Claude Code working well is not to make it obedient everywhere. It is to give it room to move in the places where exploration, refactoring, investigation, and tool use are valuable, while sharply constraining the places where drift is expensive. Claude needs enough freedom to inspect the codebase, reshape weak areas, run checks, and follow the evidence. It should not have freedom to invent a new architecture, coding style, dependency, testing pattern, or permission posture just because that is the shortest path through the current task.
+
+That balance is difficult because the boundaries have to be designed, not wished into existence. A good setup makes the right paths easy to find and the wrong paths hard to take. Skills, rules, agents, references, and commands only help when Claude can discover them from normal task wording and route itself to them without the human remembering a magic invocation. If an important convention or workflow lives in an orphaned markdown file, it may as well not exist.
+
+The other half of the system is constraint. Claude will often take the locally convenient route: patch around a weak structure, duplicate a nearby pattern, preserve accidental behavior, weaken types, skip tests, or use a hack that gets the immediate output looking right. This is not malice; it is the default shape of task completion under pressure. The answer is not softer advice. The answer is harsh, explicit, highly visible coding conventions backed by verification, approval gates, and mechanical formatting. The setup should make the correct engineering path more obvious than the shortcut.
+
+In practice, this guide argues for three simultaneous properties:
+
+- **bounded freedom**: let Claude investigate, refactor for readiness, and use tools inside approved areas;
+- **automatic discoverability**: make every important workflow, skill, rule, and specialist agent routable without special prompting;
+- **tight conventions**: define the codebase's allowed shapes so Claude cannot quietly create new ones.
+
+If one of those is missing, the system degrades. Freedom without conventions becomes chaos. Conventions without discoverability are ignored. Discoverability without freedom creates a well-documented bottleneck. The point of the architecture below is to keep all three in force at the same time.
+
 ## Common Claude Failure Modes
 
 If the setup does not actively counter these, Claude will keep doing them:
