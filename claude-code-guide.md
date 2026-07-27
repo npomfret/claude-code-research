@@ -2,9 +2,9 @@
 
 This guide is for real codebases that will still matter in six months. It is not for demos, weekend prototypes, or "look what the agent can do" threads. The central problem is simple: Claude Code is useful, fast, and broad, but without structure it is a sloppy programmer. It duplicates logic, patches features into code that should have been refactored first, and slowly fills a codebase with pattern drift.
 
-Anthropic's official documentation is the source of truth for what Claude Code can do: [Best Practices](https://code.claude.com/docs/en/best-practices), [Memory](https://code.claude.com/docs/en/memory), [Skills](https://code.claude.com/docs/en/skills), [Subagents](https://code.claude.com/docs/en/sub-agents), [Hooks](https://code.claude.com/docs/en/hooks), [MCP](https://code.claude.com/docs/en/mcp), [Settings](https://code.claude.com/docs/en/settings), [CLI Reference](https://code.claude.com/docs/en/cli-reference), the weekly [What’s new](https://code.claude.com/docs/en/whats-new) digest, and the [changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md). The research reports in the reading-list index are useful as evidence of how people are using the tool in practice, but they are not authoritative.
+Anthropic's official documentation and changelog, collected at the end of this guide, are the source of truth for what Claude Code can do.
 
-> **Verification date: 16 July 2026.** The latest weekly digest available during this review covers v2.1.202–v2.1.206 (6–10 July). Claude Code changes quickly; use the linked weekly digest and changelog to check later releases and fixes.
+> **Verification date: 27 July 2026.** The latest weekly digest available during this review covers v2.1.207–v2.1.212 (13–17 July), and the changelog reaches v2.1.220. Claude Code changes quickly; use the linked weekly digest and changelog to check later releases and fixes.
 
 ## Operating Ethos
 
@@ -44,37 +44,20 @@ If the setup does not actively counter these, Claude will keep doing them:
 
 The rest of this guide exists to suppress those failure modes structurally rather than hoping Claude behaves better on its own.
 
-## Source Posture
-
-Before talking about setup, it is worth being explicit about the source material.
-
-- The official Anthropic docs are strong on product capabilities and weak on long-project governance. They correctly emphasize concise memory, specificity, skills, hooks, verification, and current commands, but they do not by themselves solve code quality drift.
-- The report on the `claude-code-best-practice` repository is useful because it surfaces recurring tactics such as planning first, concise `CLAUDE.md`, verification loops, and parallel work. It is weak where it turns a pile of tips into an implied architecture. Long-lived projects need a tighter system than "86 good ideas." Source: [Someone Finally Documented How to Actually Use Claude Code](https://npomfret.github.io/reading-list-researcher/e3f151d5e47a73c7.html).
-- The Boris/`CLAUDE.md` memory-system report correctly identifies memory, process discipline, and feedback loops as the real leverage. It becomes dangerous if interpreted as "keep adding more to root memory forever." That is exactly how you waste context. Source: [How Boris Cherny Trains AI at Anthropic: The CLAUDE.md Memory System](https://npomfret.github.io/reading-list-researcher/c641144769e8837a.html).
-- The hidden-features report is good for capability discovery and weak as a setup philosophy. It surfaces `/loop`, hooks, mobile, teleportation, browser access, and slash commands, but feature discovery is not the same as codebase governance. Source: [15 Hidden and Under-Utilized Features in Claude Code](https://npomfret.github.io/reading-list-researcher/08a08a991d5e8161.html).
-- The gstack/Superpowers/Compound comparison is good at separating planning, evaluation, workflow discipline, and knowledge compounding. It is less useful if taken as a required stack for every team. This guide borrows the separation-of-concerns insight and rejects the meta-framework sprawl. Source: [I Compared gstack, Superpowers, and Compound Engineering](https://npomfret.github.io/reading-list-researcher/e502b3549aff92cb.html).
-- The Superpowers repository itself is a useful primary source for three ideas this guide agrees with: common workflows should auto-route instead of relying on user memory, testing discipline should be explicit, and speculative complexity should be resisted through principles like TDD, YAGNI, and DRY. It is less useful where it prescribes a larger workflow stack and git worktree-centric execution model than many teams need. Sources: [Superpowers repo](https://github.com/obra/superpowers), [Best GitHub repos for Claude code that will 10x your next project](https://npomfret.github.io/reading-list-researcher/5187cc080607fbc8.html).
-- Forrest Chang's [`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) repository is a useful primary source because it operationalizes recurring LLM failure modes into concise persistent guidance: think before coding, avoid silent assumptions, prefer simplicity, and define success criteria that can be verified. It is especially strong as evidence that one-time behavioral configuration beats re-explaining the same rules every session. It is weaker where "Surgical Changes" is interpreted too literally. For long-running projects, "touch only what you must" is a good brake on random collateral edits, but not a sufficient philosophy. Sometimes the correct change is a larger readiness refactor before implementation. Sources: [`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills), [Andrej Karpathy's LLM Coding Failure Patterns Converted Into a Single Configuration File Gains 3,741 Stars](https://npomfret.github.io/reading-list-researcher/7bfea976347d372e.html).
-- The three "best GitHub repos for Claude Code" reports are ecosystem signals, not setup doctrine. They help identify recurring needs such as persistent memory, design guidance, automation, and curated skills, but curation lists are not architecture. Sources: [Kshitij Mishra's list](https://npomfret.github.io/reading-list-researcher/e6f4d1afbd729e56.html), [Hasan Toor's list](https://npomfret.github.io/reading-list-researcher/5187cc080607fbc8.html), [Jahir Sheikh's list](https://npomfret.github.io/reading-list-researcher/c1aa58026580b10e.html).
-- The [`ui-ux-pro-max-skill` repository](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) is a useful primary source for what a serious imported design specialist looks like in practice: automatic UI-task routing, stack-specific guidance, explicit anti-patterns, and generated design-system scaffolding. It is useful as an overlay. It would be a mistake to treat it as a substitute for repo-owned conventions.
-- The Google Stitch workflow report is a valid example of high-value task-specific context. It is still narrow, frontend-heavy, and token-expensive. It should influence design-task setup, not the architecture of the whole Claude Code system. Source: [Claude Code + Google Stitch 2.0](https://npomfret.github.io/reading-list-researcher/2aa3ed775a7a775e.html).
-- The dev-browser report is useful as evidence that browser tooling can be valuable. It is not evidence that browser tooling should be a default reflex. Source: [Sawyer Hood Announces dev-browser Hits 4k GitHub Stars](https://npomfret.github.io/reading-list-researcher/b4cbb3b860869a88.html).
-- The official release material is the right evidence for product capabilities. The recent releases add auto mode, auto memory, background-by-default subagents, nested subagents, dynamic workflows, model fallbacks, `/cd`, `/rewind`, and an expanded `/doctor`; the practical recommendations below account for these features. The release notes are descriptive, not a substitute for engineering judgment. Sources: [What’s new](https://code.claude.com/docs/en/whats-new), [Subagents](https://code.claude.com/docs/en/sub-agents), and [Settings](https://code.claude.com/docs/en/settings).
-- This guide intentionally does not rely on unverified internal implementation claims, leaked artefacts, or unreleased feature flags. They are neither a stable user contract nor a sound basis for repository policy.
-
-The recurring consensus across the sources is real: keep memory concise, plan before broad edits, verify aggressively, and package repeated workflows. The missing piece is that none of those habits alone will stop Claude from introducing sloppiness. The setup must be built around preventing drift.
-
 ## Current Product Surface That Changes the Setup
 
 The recent releases make Claude Code much more capable at persistence and parallel work. They do not remove the need for a controlled repository setup; they make the boundaries more important.
 
 - **Auto memory is now enabled by default.** It stores Claude’s own repository learnings separately from team-authored `CLAUDE.md` instructions. Use `/memory` to inspect or disable it; keep team policy in version-controlled instructions, not in auto memory.
 - **Subagents run in the background by default.** Permission prompts from a background agent surface in the main session, and a completed task remains visible in `/tasks`. Give parallel agents independent, bounded outputs; they do not share a live working memory.
-- **Nested delegation and dynamic workflows exist.** A subagent can spawn further subagents, and dynamic workflows can orchestrate large numbers of agents. Treat both as escalation tools for genuinely decomposable work, with explicit ownership and verification, not as a default for small edits.
+- **Nested delegation and dynamic workflows exist, with limits.** Subagents currently nest to three layers by default. A session defaults to 200 total subagent spawns and 20 running concurrently, while dynamic workflows now carry an advisory default of fewer than 15 agents. Treat all of these as escalation tools for genuinely decomposable work, not as a default for small edits.
 - **Auto mode is a real permission posture, not a project setting.** It uses a safety classifier and must be selected from user, managed, or CLI settings; checked-in project settings cannot enable it. Its policy is prose-based, so it complements rather than replaces deterministic deny rules and sandboxing.
 - **Session recovery is better.** `/cd` can move a session’s working directory, `/rewind` can return to before `/clear`, and `/doctor` (also `/checkup`) diagnoses configuration and can propose repairs. These reduce operational friction; they do not make an endless, unfocused session a good idea.
+- **Fork terminology changed.** `/fork` now copies the conversation into a separate background session. Use `/subtask` for the in-session fork that reports back into the current conversation, and `/branch` when you want to switch the current session onto a copied conversation branch.
+- **Forked skills and built-in reviews are more explicit.** Skills with `context: fork` run in the background by default unless they set `background: false`. `/code-review`, `/verify`, and `/deep-research` run only when explicitly invoked; do not write routing guidance that assumes Claude will start them automatically.
 - **Browser and computer-use surfaces are broader.** Desktop now has an in-app browser, Claude in Chrome is generally available on direct plans, and computer use remains a research-preview capability. These are useful for verifying UI or consulting external truth; they should still follow source and test inspection rather than replace it.
-- **Model and effort controls are more explicit.** Current settings support ordered `fallbackModel` chains, while `/effort` controls reasoning effort. Choose model policy deliberately for a workflow or agent instead of assuming every task needs the most expensive setting.
+- **Model and effort controls changed again.** Opus 5 is now the current `opus` alias on the Anthropic API and several supported providers; provider aliases can still resolve differently. Current settings support ordered `fallbackModel` chains, while `/effort` controls reasoning effort. Prefer family aliases when you want upgrades and full model IDs when reproducibility matters.
+- **Sandbox network policy can fail closed.** `sandbox.network.strictAllowlist` denies non-allowlisted hosts for sandboxed commands instead of falling back to a prompt. Use it when network egress must be deterministic, alongside filesystem isolation and regular permission rules.
 
 The official [What’s new](https://code.claude.com/docs/en/whats-new), [Memory](https://code.claude.com/docs/en/memory), [Subagents](https://code.claude.com/docs/en/sub-agents), and [Settings](https://code.claude.com/docs/en/settings) pages are the ongoing references for this section.
 
@@ -88,7 +71,7 @@ Claude Code does not naturally optimize for long-term codebase coherence. It opt
 2. It duplicates an existing pattern because it did not search broadly enough before writing.
 3. It introduces a slightly different way of doing something because the local context made it look reasonable.
 
-The official [Best Practices](https://code.claude.com/docs/en/best-practices) doc is right to stress specificity, context, and verification. The Boris memory-system report is right that process discipline matters more than "prompt tricks." The best-practices-repo report is right that many teams underuse planning and reusable workflows. But most public advice still understates the main issue: the failure mode is not just "Claude occasionally makes mistakes." The failure mode is ongoing structural degradation.
+The official [Best Practices](https://code.claude.com/docs/en/best-practices) doc is right to stress specificity, context, and verification. But most public advice still understates the main issue: the failure mode is not just "Claude occasionally makes mistakes." The failure mode is ongoing structural degradation.
 
 Pattern drift compounds. One new error-handling style becomes three. A second API-call shape appears because the agent patched one endpoint quickly. One feature uses a shared helper, the next writes the logic inline, and a third invents a wrapper. Six weeks later the project has inconsistent behavior, partial abstractions, and bugs that only exist in one branch of duplicated code.
 
@@ -104,7 +87,7 @@ This often shows up as shoehorning. Claude sees a request, finds the nearest pla
 
 It also shows up as false reverence for the existing code. Claude often behaves as if the current implementation must be production-hardened, backward compatible, and preserved at all costs even when the project is brand new, has never shipped, or is obviously still in flux. That leads it to add fallbacks, compatibility layers, default values, and defensive branches that the codebase has not earned. In many early or actively evolving projects, the correct move is to change the shape cleanly rather than preserve a nonexistent legacy contract.
 
-The hidden-features report and the Boris workflow reports correctly push planning and verification, but they do not go far enough on feature readiness. A world-class setup must encode a different default:
+A serious setup must encode a different default:
 
 1. Audit the relevant code.
 2. Assume it is not ready.
@@ -121,35 +104,13 @@ Just as important, Claude should be encouraged to offer the cleaner, larger chan
 
 Anthropic's [Memory](https://code.claude.com/docs/en/memory) guidance and [Best Practices](https://code.claude.com/docs/en/best-practices) guidance are correct that project memory should be concise and specific. The most damaging bad advice in the ecosystem is the repeated suggestion to "just add it to `CLAUDE.md`." That advice works on tiny projects because the entire repo is tiny. On a real project, `CLAUDE.md` is always-on context. Every unnecessary paragraph steals budget from the actual task.
 
-The Boris/`CLAUDE.md` report contains a valid core idea: institutional memory matters. The invalid extension is treating the root memory file as the place to store all institutional memory. It is not. Long-lived projects need discoverable, on-demand context instead.
-
-### Most public advice is optimized for the wrong use case
-
-The ecosystem reports are full of novel features, tool lists, and throughput stories. Some of that is useful. Much of it is optimized for:
-
-- demos,
-- short-lived repos,
-- personal experimentation,
-- impressive screenshots,
-- or loosely governed side projects.
-
-That is why this guide rejects several common recommendations. Worktrees may be productive for some users, but they are not the best default for interactive agent collaboration. Browser tools are powerful, but using them before reading the source is context waste. Hook-based command blocking sounds safe, but it creates brittle friction while leaving the underlying governance problem unsolved.
-
-The right question for every technique is: does this make the codebase more coherent after six months, or does it just help the current session look clever?
-
-### Further reading
-
-- [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices)
-- [Claude Code Memory](https://code.claude.com/docs/en/memory)
-- [Someone Finally Documented How to Actually Use Claude Code](https://npomfret.github.io/reading-list-researcher/e3f151d5e47a73c7.html)
-- [How Boris Cherny Trains AI at Anthropic: The CLAUDE.md Memory System](https://npomfret.github.io/reading-list-researcher/c641144769e8837a.html)
-- [Superpowers repo](https://github.com/obra/superpowers)
+Institutional memory matters, but the root memory file is not the place to store all of it. Long-lived projects need discoverable, on-demand context instead.
 
 ## 2. `CLAUDE.md` Architecture
 
 ### What `CLAUDE.md` is for
 
-`CLAUDE.md` is the root routing layer. The official docs support using `/init` to create it and keeping it concise and repo-specific. The best-practices report, the Boris memory-system report, and Anthropic's own memory guidance all point in the same direction: the root file should contain information Claude cannot reliably infer and rules that are always in force.
+`CLAUDE.md` is the root routing layer. The official docs support using `/init` to create it and keeping it concise and repo-specific. It should contain information Claude cannot reliably infer and rules that are always in force.
 
 That means the root file should contain:
 
@@ -233,27 +194,19 @@ Why this works:
 
 ### Keep the root file short on purpose
 
-The official [Memory](https://code.claude.com/docs/en/memory) model supports multiple memory layers, including project memory, user memory, and more local memory. Use that. Child `CLAUDE.md` files are appropriate only when a subtree genuinely works differently. Do not create a forest of local memory files unless the repo really has distinct local rules.
+The official [Memory](https://code.claude.com/docs/en/memory) guidance targets fewer than 200 lines per `CLAUDE.md`. Child files are appropriate only when a subtree genuinely works differently. Path-scoped rules reduce startup context; splitting content into `@path` imports only reorganizes it because imports still load with the parent file.
 
 ### Context and content stability
 
-Keep root memory stable because it is loaded into every session, not because of undocumented caching internals. Claude Code documents prompt caching separately, but its safe operational guidance is simpler: put durable, always-relevant instructions in `CLAUDE.md`; put multi-step or local guidance in skills or path-scoped rules; put transient task state in the conversation, issue, or plan. A project-root `CLAUDE.md` is re-read after `/compact`, while nested files reload when Claude next reads in that subtree. Use `/memory` to see what loaded and `/doctor` to identify a checked-in root file that needs trimming.
+Keep root memory stable because it is loaded into every session, not because of undocumented caching internals. Claude Code documents prompt caching separately, but its safe operational guidance is simpler: put durable, always-relevant instructions in `CLAUDE.md`; put multi-step or local guidance in skills or path-scoped rules; put transient task state in the conversation, issue, or plan. A project-root `CLAUDE.md` is re-read after `/compact`, while nested files reload when Claude next reads in that subtree. Use `/context` to confirm which memory files loaded, `/memory` to inspect auto memory, and `/doctor` to identify a checked-in root file that needs trimming.
 
 One important nuance: `.claude/rules/` is now part of the official memory and rules surface, so it is a legitimate tool for modularizing always-on or path-scoped instructions. The same architectural caution still applies: do not treat a rules folder as the whole system. Use it as one layer alongside root `CLAUDE.md`, skills, hooks, settings, and reference files. The important question is still whether each instruction lives in the correct layer and is loaded when needed.
-
-### Further reading
-
-- [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices)
-- [Claude Code Memory](https://code.claude.com/docs/en/memory)
-- [Claude Code Settings](https://code.claude.com/docs/en/settings)
-- [Someone Finally Documented How to Actually Use Claude Code](https://npomfret.github.io/reading-list-researcher/e3f151d5e47a73c7.html)
-- [How Boris Cherny Trains AI at Anthropic: The CLAUDE.md Memory System](https://npomfret.github.io/reading-list-researcher/c641144769e8837a.html)
 
 ## 3. Skills and Rules Architecture
 
 ### Define the layers clearly
 
-The ecosystem uses the word "rules" too loosely. For a long-lived project, separate the layers:
+The word "rules" is often used too loosely. For a long-lived project, separate the layers:
 
 - `CLAUDE.md`: always-on operating contract and routing.
 - `.claude/rules/`: persistent always-on or path-scoped standing instructions.
@@ -320,49 +273,6 @@ Use a structure like this:
 
 This design keeps the root file short while still making detailed guidance available. It also avoids collapsing the whole architecture into either one giant root file or one giant rules folder when different instruction types belong in different layers.
 
-### External skills for web app teams
-
-For web app teams, it is useful to separate two different problems:
-
-- project-owned skills that encode your repo's workflows and conventions,
-- and imported specialist skills that help with design, framework-specific implementation, or quality review.
-
-The second category is where the ecosystem is currently strongest. The mistake is to let imported skills replace project-owned conventions. They should be overlays, not architecture.
-
-Specialist overlays vary by ecosystem and will keep changing. The durable lesson is not "use this exact catalog." The durable lesson is:
-
-- keep repo-owned skills for workflow and conventions
-- add specialist overlays only when they solve a real recurring weakness
-- prefer one narrowly scoped specialist per problem area over several overlapping ones
-- treat imported skills as overlays, not as the governing architecture
-
-Operationally, this suggests a simple pattern for frontend-heavy repos:
-
-- keep repo-owned skills for workflow and conventions,
-- add one visual-design specialist if design generation matters,
-- add one framework or UI-quality specialist if that stack is common,
-- and avoid loading multiple overlapping taste-heavy design skills by default.
-
-That last point matters. Visual-design skills often conflict with each other more than technical skills do. If routing is too broad, Claude will blend multiple aesthetic instruction sets and produce weaker work. Pick one default design skill, not three.
-
-### External skills for Swift/iOS/macOS teams
-
-The same distinction matters in any platform-specific ecosystem: separate repo-owned workflow and convention skills from imported platform specialists. The specific overlays will vary over time. What matters is the pattern:
-
-- keep repo-owned skills for architecture, workflow, and project conventions
-- add one platform specialist when generic guidance is not enough
-- add one build-tooling specialist when local build reliability is a recurring problem
-- avoid loading several overlapping platform packs by default
-
-Operationally, the right default for Swift-heavy repos is simple:
-
-- keep repo-owned skills for architecture, workflow, and project conventions,
-- add one Swift-language or platform specialist overlay,
-- add one build-tooling overlay when Xcode build reliability is a recurring problem,
-- and avoid loading multiple overlapping SwiftUI or architecture packs by default.
-
-That last point matters for Swift for the same reason it matters for web design. If Claude loads several overlapping taste-heavy or architecture-heavy overlays, it will blend them and produce weaker work. Pick one default specialist at a time.
-
 ### Design for self-discovery
 
 Assume the user will often forget which skill, rule, or agent exists. The setup should still work.
@@ -385,23 +295,9 @@ Use these rules:
 - Write reference docs to support a skill, not to act as orphaned markdown that Claude might never load.
 - If you use custom agents or subagents, define them around distinct jobs Claude can infer, such as `repo-audit`, `ui-review`, or `migration-check`, not vague labels like `engineer` or `helper`.
 - If Claude repeatedly misses a relevant skill, fix the skill metadata, split overlapping skills, or rename the skill. Do not solve repeated routing failures by telling the user to remember more commands.
+- Test automatic routing with several natural prompts a programmer might actually type. Treat repeated missed invocations as a metadata, naming, or scope bug.
 
 The design target is simple: for common task types, the user should be able to ask for the work naturally and Claude should pull in the right workflow guidance without being hand-held.
-
-### Practical routing checklist
-
-When a skill or agent is meant to be discovered automatically, use this checklist:
-
-- Name it with words a developer would actually say in a request, not team-internal jargon.
-- Put likely trigger phrases in the description, such as "bug fix", "feature work", "API change", "review diff", or "database migration".
-- Include anti-triggers in the description so Claude knows when not to use it.
-- Keep one skill focused on one job. If the description needs a long "and also", it is probably two skills.
-- Prefer one obvious skill for a common task type over three partially overlapping skills.
-- Use nested skills or path-scoped rules when the guidance applies only to a directory or file class.
-- Test routing with several natural prompts a real user might type. If Claude does not reliably pick the intended skill, rename it or tighten the description.
-- If a skill is important but easy to miss, add a routing reminder in root `CLAUDE.md`.
-- If a workflow is rare, expensive, or risky, do not force automatic routing just because it is possible.
-- Review missed invocations as a setup bug. Repeated misses usually mean the metadata, naming, or scope is wrong.
 
 ### How to write a skill
 
@@ -448,26 +344,11 @@ Require explicit invocation for:
 - migration playbooks,
 - experimental or risky workflows.
 
-The official skill frontmatter supports this distinction through `disable-model-invocation` and `user-invocable`; `context: fork` changes execution into a forked agent context. Use nested directories or path-scoped rules for local applicability. Keep the auto-routed surface small and sharp.
+The official skill frontmatter supports this distinction through `disable-model-invocation` and `user-invocable`; `context: fork` changes execution into a forked agent context and now runs in the background by default unless the skill sets `background: false`. Edits from a backgrounded fork fall outside the parent session's checkpoints, so `/rewind` does not undo them; use git to review and revert them. Use nested directories or path-scoped rules for local applicability. Keep the auto-routed surface small and sharp.
 
-### What a "rule" should mean in practice
+### Put each rule in its enforceable layer
 
-In this guide, a rule is not a random text file. A rule is a load-bearing instruction with a clear home:
-
-- always-on and universal: root `CLAUDE.md`,
-- always-on or path-scoped standing guidance: `.claude/rules/`,
-- scoped and task-shaped: skill plus reference file,
-- detailed but supporting: reference docs,
-- allow/deny and permission posture: `settings.json`,
-- mechanically enforced: hook, script, or test.
-
-That definition matters because it prevents the common failure where teams scatter instructions across markdown files and hope Claude infers the right one at the right time.
-
-### What a rule looks like in practice
-
-The safest way to think about rules is by where they live and how they are enforced.
-
-Example:
+A rule is a load-bearing instruction with a clear home, not an arbitrary markdown file:
 
 - Root rule in `CLAUDE.md`:
   - "Never introduce a new dependency or abstraction without explicit approval."
@@ -480,23 +361,7 @@ Example:
 - Enforced rule in tooling:
   - "Touched API packages must pass their targeted test command before the task is complete."
 
-Those are all rules, but they are different kinds of rules:
-
-- routing or operating rules belong in root memory
-- standing scoped behavior belongs in `.claude/rules/`
-- task-shaped behavioral rules belong in skills and the reference docs that support them
-- permission policy belongs in `settings.json`
-- non-negotiable completion or enforcement rules belong in hooks, tests, or scripts
-
-This is why the guide does not treat `.claude/rules/` as the center of the architecture. The important question is not "do we have a rules folder?" The important question is "does each rule live in the correct layer, and will Claude reliably encounter it when needed?"
-
-### Further reading
-
-- [Claude Code Skills](https://code.claude.com/docs/en/skills)
-- [Claude Code CHANGELOG.md](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
-- [Someone Finally Documented How to Actually Use Claude Code](https://npomfret.github.io/reading-list-researcher/e3f151d5e47a73c7.html)
-- [I Compared gstack, Superpowers, and Compound Engineering](https://npomfret.github.io/reading-list-researcher/e502b3549aff92cb.html)
-- [Superpowers repo](https://github.com/obra/superpowers)
+Reference documents may support any of these layers, but documentation alone does not route or enforce a rule. The important test is whether Claude reliably encounters the instruction and whether a deterministic rule can be moved into tooling.
 
 ## 4. Coding Conventions as Infrastructure
 
@@ -504,7 +369,7 @@ This is why the guide does not treat `.claude/rules/` as the center of the archi
 
 This is the most important section in the guide.
 
-If Claude is sloppy by default, then coding conventions are not style preferences. They are the infrastructure that prevents sloppiness from accumulating. The source material points in this direction but usually stops short of saying it bluntly. The best-practices repo report, the Boris memory-system report, and the ecosystem tooling lists all imply that structure matters. This guide makes it explicit: conventions are the primary quality mechanism.
+If Claude is sloppy by default, then coding conventions are not style preferences. They are the infrastructure that prevents sloppiness from accumulating. Anthropic's best-practices and memory guidance point in this direction but stop short of making it a complete engineering system. This guide makes it explicit: conventions are the primary quality mechanism.
 
 ### What must be specified
 
@@ -789,17 +654,7 @@ The exact command surface depends on the stack. Examples in this guide may use `
 - run formatting automatically on touched files after edits
 - use checks in CI or review flows to catch anything that still slips through
 
-The strongest shape is simple:
-
-- `dprint.json` defines the repo-wide formatting policy
-- a simple command or script applies formatting fixes
-- an optional check command can enforce the same policy in automation
-
-That is the right model because it removes formatting from Claude's judgment. Claude can still make the edit, but the repository, not the model, decides how the final file should look.
-
-The missing last step for many teams is a narrow post-edit hook. The hook should not try to infer intent or block work. It should run the formatter only on the file or files Claude actually touched, not across the whole repository, so formatting drift gets corrected immediately without turning a small change into a noisy repo-wide rewrite. This is exactly the kind of deterministic, low-ceremony automation hooks are good at.
-
-The goal is not to teach Claude formatting taste. The goal is to remove formatting taste as a variable.
+For example, `dprint.json` can define the policy, one command can apply it, and another can check it in CI. A narrow post-edit hook may format only touched files, avoiding a noisy repository-wide rewrite. The repository, not the model, should decide the final formatting.
 
 ### Global conventions vs module-local conventions
 
@@ -829,7 +684,7 @@ This is why the "router plus on-demand skills" model matters. Global guidance st
 
 The guide already argues for aggressive verification. In practice, many teams should go one step further and encode test-first behavior for at least non-trivial feature work and reproducible bug fixes.
 
-The strongest source here is the [Superpowers repo](https://github.com/obra/superpowers), which explicitly emphasizes true red/green TDD, plus the Boris memory-system report's emphasis on never trusting "done" without rigorous verification. That combination holds up well on long-running projects because it attacks two Claude failure modes at once:
+Test-first work is useful here because it attacks two Claude failure modes at once:
 
 - Claude writes plausible code before it has pinned down observable behavior.
 - Claude declares success too early because the code "looks right."
@@ -948,20 +803,97 @@ This is the only reliable way to stop a large existing project from getting wors
 
 UI audits need special care because Claude is prone to doing a plausible sample pass and then overstating the result. For design-system questions, require category-complete scans before accepting a verdict. The audit should cover containers, boxes, panels, typography, spacing, borders, separators, corners, shadows, surfaces, icons, controls, colours, loading states, empty states, and error states. It should also distinguish four different things that Claude often blends together: raw values, centralised tokens, semantic tokens, and shared components. A value being tokenised is not enough. The token or component name should encode stable intent or domain meaning, not just current appearance. `danger`, `surface-panel`, `separator-subtle`, and `points-high` are semantic. `red`, `box2`, `border-light`, `canvas-2`, and `ink-2` are weaker unless the project has explicitly documented what they mean.
 
-### Further reading
+## 5. Programmer-Facing Code Intelligence
 
-- [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices)
-- [How Boris Cherny Trains AI at Anthropic: The CLAUDE.md Memory System](https://npomfret.github.io/reading-list-researcher/c641144769e8837a.html)
-- [Someone Finally Documented How to Actually Use Claude Code](https://npomfret.github.io/reading-list-researcher/e3f151d5e47a73c7.html)
-- [Superpowers repo](https://github.com/obra/superpowers)
+### Prefer tools that expose facts about code
 
-## 5. Task Planning and the Preparation Phase
+The most useful additions to Claude Code are not more personas, planning rituals, or prompt packs. They are tools that answer engineering questions with repository evidence:
+
+- Where is this symbol defined and used?
+- What calls it, and what does it call?
+- Which execution paths pass through it?
+- What is the blast radius of changing it?
+- Which imports violate the intended architecture?
+- Which files, exports, and dependencies are actually unused?
+- Can this repeated code shape be found or rewritten safely across the repository?
+
+These tools make Claude a better programmer because they reduce guessing. They do not replace reading the implementation, understanding runtime behavior, or running tests.
+
+### Use the cheapest reliable tool first
+
+Use this order:
+
+1. **Compiler and language server** for types, definitions, references, rename operations, and diagnostics. Language-native tooling has the best understanding of the language's actual semantics.
+2. **`rg` and repository search** for exact names, literals, configuration, tests, logs, and conventions. Text search is transparent, fast, and often sufficient.
+3. **Code graph or structural index** when the question spans many files, indirect callers, inheritance, or execution paths.
+4. **AST-aware search and rewriting** when text patterns are too fragile.
+5. **Static checks in the build** when a discovered rule should remain enforced after the current session ends.
+
+Do not add a heavyweight index merely to answer questions that the compiler or `rg` already answers well. Do not ask Claude to infer a repository-wide relationship from a handful of search results when a graph or language tool can enumerate it.
+
+### GitNexus for repository structure and blast radius
+
+[GitNexus](https://github.com/nxpatterns/gitnexus) indexes a local repository into a knowledge graph derived from Tree-sitter parsing and language-aware relationship resolution. Its CLI and MCP tools expose symbol context, incoming and outgoing calls, imports, inheritance, execution flows, paths between symbols, diff impact, and upstream blast radius. That directly supports the audit step this guide requires.
+
+High-value uses:
+
+- orienting in an unfamiliar or large repository;
+- finding callers and downstream dependencies before a refactor;
+- tracing a bug through a multi-file execution path;
+- checking which processes a diff may affect;
+- identifying related tests and modules before editing;
+- and verifying that a rename or extraction covers more than the locally obvious references.
+
+Use it as an index, not an oracle. Static call graphs have blind spots around reflection, dynamic dispatch, generated code, runtime registration, framework conventions, and unresolved language features. Confirm high-risk findings with language-server references, targeted searches, source inspection, and tests. Re-index after meaningful changes and check index staleness before relying on impact results.
+
+There are two operational cautions:
+
+- `gitnexus analyze` can install skills, register hooks, and write context into `CLAUDE.md` or `AGENTS.md`. Review those changes instead of accepting generated repository instructions blindly. Prefer a narrow or read-only integration when graph queries are all you need.
+- The current repository uses the PolyForm Noncommercial 1.0.0 license. Personal and other qualifying noncommercial use is permitted; commercial teams must review the license or obtain appropriate terms before adoption.
+
+### ast-grep for structural search and codemods
+
+[ast-grep](https://ast-grep.github.io/) searches parsed syntax trees rather than raw text. Use it when formatting, variable names, or superficial syntax vary but the code shape is the same.
+
+Good uses include:
+
+- finding every call with a deprecated argument shape;
+- locating nested `try/catch`, unsafe assertions, or framework anti-patterns;
+- building a one-off, reviewable codemod;
+- and turning a recurring structural convention into a checked rule.
+
+Start with search-only output, inspect representative matches and edge cases, then run rewrites on a clean branch and review the diff. AST matching is more precise than regex, but a syntactic match is not proof of equivalent runtime semantics.
+
+### dependency-cruiser for executable architecture
+
+For JavaScript and TypeScript repositories, [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) can validate import relationships against checked-in rules. It can detect cycles, orphans, undeclared dependencies, production code importing test code, and forbidden layer crossings.
+
+This is stronger than telling Claude "respect the architecture." Once the allowed import directions are encoded, the same rule applies to Claude, human programmers, and CI. Use its graph output to investigate the current structure; use its rule output to prevent regression.
+
+### Knip for dead-code and dependency cleanup
+
+For JavaScript and TypeScript, [Knip](https://knip.dev/) builds a project graph from entry points and framework-aware plugins, then reports unused files, exports, dependencies, unresolved imports, and optional cycle checks. It is valuable after refactors because Claude frequently leaves superseded code behind.
+
+Treat findings as leads until the project graph is correctly configured. Dynamic imports, generated entry points, framework conventions, and missing plugin configuration can create false positives. Fix entry-point and plugin gaps before adding broad ignores, and review automatic fixes before committing them.
+
+### Make discoveries durable
+
+The best outcome is not merely that Claude used a tool once. Convert stable findings into repository enforcement:
+
+- an architectural boundary becomes a dependency rule;
+- a forbidden code shape becomes an AST lint rule;
+- dead-code detection becomes a repeatable check;
+- and canonical compiler, graph, search, and analysis commands become part of the repository's documented verification surface.
+
+That is the dividing line between programmer tooling and Claude theatre: useful tools produce inspectable evidence and leave the codebase easier to verify without the current conversation.
+
+## 6. Implementation Workflow
 
 ### The default workflow must be audit -> refactor -> implement -> verify
 
-Anthropic's [Best Practices](https://code.claude.com/docs/en/best-practices) and the Boris-related reports are right to emphasize planning, explicit success criteria, and verification. The missing hardening step is that planning must include readiness refactoring by default.
+Anthropic's [Best Practices](https://code.claude.com/docs/en/best-practices) rightly emphasizes planning, explicit success criteria, and verification. The missing hardening step is that planning must include readiness refactoring by default.
 
-The Karpathy-inspired guideline set is useful here for one specific reason: it correctly treats explicit success criteria as a force multiplier. "Goal-Driven Execution" is the right instinct. Claude generally performs better when the task is framed as a verifiable outcome instead of a vague imperative. The limitation is that success criteria alone do not guarantee a coherent implementation. For long-lived projects, the goal framing should be combined with the stronger workflow in this guide: audit first, refactor for readiness second, implement third, then verify against explicit criteria.
+Explicit success criteria are a force multiplier. Claude generally performs better when the task is framed as a verifiable outcome instead of a vague imperative. Success criteria alone do not guarantee a coherent implementation, however. For long-lived projects, combine them with the stronger workflow in this guide: audit first, refactor for readiness second, implement third, then verify against explicit criteria.
 
 For any non-trivial task, Claude should follow this sequence:
 
@@ -1000,7 +932,7 @@ If this is not spelled out, Claude will often optimize for the local patch inste
 
 There is an important boundary here. This guide argues for aggressive readiness refactoring before feature work. That is not permission for Claude to invent broad frameworks "for the future."
 
-The right counterweight is the simplicity discipline emphasized in the [Superpowers repo](https://github.com/obra/superpowers) through YAGNI and in the Boris memory-system report through "avoiding over-engineering." These ideas complement each other rather than conflict:
+The right counterweight is YAGNI: prepare the code for the current requirement without designing for hypothetical ones.
 
 - refactor what the current task needs in order to become coherent
 - do not build abstractions for hypothetical future use cases
@@ -1008,27 +940,6 @@ The right counterweight is the simplicity discipline emphasized in the [Superpow
 - do not create a general-purpose layer until there is real duplication or a second concrete use case
 
 The distinction matters because Claude drifts in both directions. Sometimes it patches too little. Sometimes it generalizes too much. A good setup tells it to prepare the ground for the current task, not to redesign the entire area around imagined future requirements.
-
-### Encode the workflow structurally
-
-Do not rely on remembering to ask Claude nicely. Encode this workflow in:
-
-- root `CLAUDE.md`,
-- the feature-workflow skill,
-- and review/check skills if you use them.
-
-The feature-workflow skill should force Claude to answer these questions before implementation:
-
-- What existing pattern is already present?
-- If this area were started today with the current knowledge, what would the ideal design be?
-- Is the current structure ready for the change?
-- What must be refactored, extracted, or encapsulated first?
-- Is the proposed plan the ideal solution? If not, why is a compromise necessary and what debt does it accept?
-- What would the hacky shoehorned version of this change look like, and how do we avoid it?
-- Are fallbacks, backward-compatibility shims, or default values actually required, or are we protecting a legacy contract that does not really exist?
-- What would count as introducing a new pattern?
-- Which decisions require approval?
-- What tests and checks define done?
 
 ### Preventing premature implementation
 
@@ -1044,7 +955,7 @@ This is better than:
 
 The official docs are correct that specificity matters. For long projects, specificity must include readiness expectations.
 
-It should also include success criteria. One of the best ideas in [`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills) is to turn requests into verifiable goals instead of loose directives. In practice, the strongest prompt shape for non-trivial work is:
+It should also include success criteria. In practice, the strongest prompt shape for non-trivial work is:
 
 - describe the intended outcome
 - require the audit
@@ -1053,53 +964,13 @@ It should also include success criteria. One of the best ideas in [`andrej-karpa
 
 That gives Claude the benefits of goal-driven execution without collapsing into smallest-diff thinking.
 
-### How Claude should communicate the plan
-
-For any task that is not obviously tiny, Claude should present:
-
-- the code paths inspected,
-- the current pattern it found,
-- the ideal design it would choose with a clean start,
-- the readiness problems,
-- the proposed refactor boundary,
-- the implementation steps,
-- the verification steps,
-- any approval gates,
-- and, only if relevant, clearly labelled compromise alternatives after the ideal solution.
-
-That is not bureaucracy. It is the mechanism that catches hidden drift before the edit starts.
-
-### Handling unclear scope
-
-When the task is underspecified, Claude must ask instead of assuming. The best-practices report is good on using questions up front. This guide sharpens the rule: if scope ambiguity could change abstractions, dependencies, or pattern choice, Claude should stop and clarify. It must not silently choose the smaller local solution just because it is available.
-
-### Breaking large tasks into sub-tasks
-
-Large tasks should be sequenced by dependency:
-
-1. audit and readiness refactor,
-2. core implementation,
-3. verification and cleanup,
-4. config updates,
-5. optional follow-on refactors.
-
-Do not split a large task into parallel sub-tasks until the ownership boundaries are explicit. Parallelism without boundaries is just faster drift.
-
-### Further reading
-
-- [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices)
-- [Someone Finally Documented How to Actually Use Claude Code](https://npomfret.github.io/reading-list-researcher/e3f151d5e47a73c7.html)
-- [How Boris Cherny Trains AI at Anthropic: The CLAUDE.md Memory System](https://npomfret.github.io/reading-list-researcher/c641144769e8837a.html)
-- [I Compared gstack, Superpowers, and Compound Engineering](https://npomfret.github.io/reading-list-researcher/e502b3549aff92cb.html)
-- [Superpowers repo](https://github.com/obra/superpowers)
-
-## 6. Self-Maintaining Configuration
+## 7. Self-Maintaining Configuration
 
 ### The configuration system should evolve with the codebase
 
 This is an underused but high-leverage idea. Claude should not just consume `CLAUDE.md`, skills, agent definitions, and convention files. It should help maintain them.
 
-The source material gets part of the way there. The Boris memory-system report points toward compounding institutional knowledge. The gstack/Superpowers/Compound comparison points toward knowledge compounding and reusable workflows. Anthropic's skills and memory systems provide the mechanisms. The missing operational guidance is this: configuration updates should be part of normal development, not deferred cleanup.
+Anthropic's skills and memory systems provide the mechanisms for durable repository guidance. The missing operational guidance is this: configuration updates should be part of normal development, not deferred cleanup.
 
 Treat this as controlled self-improvement. When Claude encounters a recurring failure mode, a missing convention, stale routing, or an unclear workflow, it should not just work around the problem for the current task. It should propose or make the smallest approved config improvement that helps it do a better job next time.
 
@@ -1178,22 +1049,16 @@ Use three triggers to audit config:
 
 If the docs say one thing and the code does another, resolve it immediately. Do not let the contradiction sit.
 
-### Further reading
+## 8. MCP Strategy
 
-- [Claude Code Memory](https://code.claude.com/docs/en/memory)
-- [Claude Code Skills](https://code.claude.com/docs/en/skills)
-- [How Boris Cherny Trains AI at Anthropic: The CLAUDE.md Memory System](https://npomfret.github.io/reading-list-researcher/c641144769e8837a.html)
-- [I Compared gstack, Superpowers, and Compound Engineering](https://npomfret.github.io/reading-list-researcher/e502b3549aff92cb.html)
+### MCP is for missing access or structured evidence, not for thinking
 
-## 7. MCP Strategy
-
-### MCP is for missing system access, not for thinking
-
-Anthropic's [MCP](https://code.claude.com/docs/en/mcp) docs frame MCP correctly: it gives Claude access to tools and systems. That is valuable. The common misuse is letting MCP stand in for analysis that should have happened in the code first.
+Anthropic's [MCP](https://code.claude.com/docs/en/mcp) docs frame MCP correctly: it gives Claude access to tools and systems. That includes external systems and local analysis engines such as a code graph. The common misuse is letting MCP stand in for analysis that should have happened in the code first.
 
 High-value MCP categories in a coding workflow:
 
 - version-accurate docs,
+- locally indexed code relationships when ordinary search cannot reliably enumerate them,
 - database inspection,
 - GitHub and CI/CD state,
 - issue trackers,
@@ -1206,8 +1071,6 @@ Low-value or overused cases:
 - querying external systems before confirming the repo cannot answer the question,
 - attaching heavyweight tools to every session whether needed or not.
 
-The hidden-features report and the dev-browser report are useful because they show what is possible. They are weak if read as "always use the browser." The Stitch workflow report is valid for design-heavy work because it attaches real design-system context, but it is still task-specific and expensive.
-
 ### The code-first rule
 
 Encode this directly:
@@ -1216,7 +1079,8 @@ Encode this directly:
 2. read the tests,
 3. read the config,
 4. inspect local logs or outputs,
-5. only then reach for MCP if the answer depends on external truth or runtime state you cannot infer locally.
+5. use a local code-intelligence MCP when the question requires graph-wide relationships;
+6. use an external MCP when the answer depends on remote truth or runtime state you cannot infer locally.
 
 This saves context, time, and confusion.
 
@@ -1225,11 +1089,12 @@ This saves context, time, and confusion.
 Use an MCP when at least one of these is true:
 
 - the source of truth is outside the repo,
+- a local analysis engine can answer a structural question more completely than manual search,
 - you need live system state,
 - you need version-accurate external documentation,
 - or you need to perform a remote action that cannot be simulated locally.
 
-If none of those are true, stay in the codebase.
+If none of those are true, stay with the compiler, language server, tests, and repository search.
 
 ### Scope MCP availability
 
@@ -1237,19 +1102,12 @@ Do not make every MCP globally available all the time just because it exists. If
 
 A practical baseline:
 
-- always-on: only the few MCPs that represent common external truth,
-- task-specific: browser, design, deployment, or rare internal systems.
+- always-on: only the few MCPs that provide frequently needed code intelligence or external truth,
+- task-specific: database, browser, deployment, or rare internal systems.
 
 The cost is not just latency. It is also conceptual distraction. Claude will use tools that exist.
 
-### Further reading
-
-- [Claude Code MCP](https://code.claude.com/docs/en/mcp)
-- [15 Hidden and Under-Utilized Features in Claude Code](https://npomfret.github.io/reading-list-researcher/08a08a991d5e8161.html)
-- [Claude Code + Google Stitch 2.0](https://npomfret.github.io/reading-list-researcher/2aa3ed775a7a775e.html)
-- [Sawyer Hood Announces dev-browser Hits 4k GitHub Stars](https://npomfret.github.io/reading-list-researcher/b4cbb3b860869a88.html)
-
-## 8. Hooks Strategy
+## 9. Hooks Strategy
 
 ### Hooks are for logging, side effects, and auditability
 
@@ -1291,19 +1149,10 @@ Good hooks for this setup:
 - `SessionStart`: print a short reminder to use convention skills and the feature workflow for non-trivial changes.
 - `PostToolUse`: append command and file-change logs to an audit file.
 - post-edit side effect: run a targeted formatter or linter on touched files.
-- formatting hook: reformat every touched file with the project's formatter so Claude's inconsistent formatting does not accumulate in the repo.
 - `Stop`: write a short task summary or emit a notification.
 - multi-agent events from recent changelog additions: record task completion or teammate idle state if you use multi-agent workflows.
 
 Keep them fast, deterministic, and visible.
-
-If you want one concrete default, prefer formatting touched files with the project's formatter rather than asking Claude to keep style consistent from memory. A fast config-driven formatter such as `dprint` works well for this. Run it narrowly on changed files, not as a whole-repo sweep after every small edit.
-
-### Why blocking hooks are worse than they look
-
-The official docs allow blocking. This guide still recommends against making that your primary safety mechanism. Operational safety surfaces are already complicated: permissions, sandboxing, hooks, and human approvals all interact. The more brittle blocking logic you add, the more likely you are to create false positives and developer friction while still not solving conceptual drift.
-
-Use hooks to observe and enhance. Do not use them to paper over bad governance.
 
 ### Permissions reality
 
@@ -1321,21 +1170,7 @@ Auto mode is now a useful middle ground for a personal or managed environment: t
 
 `bypassPermissions` remains deliberately dangerous. It is appropriate only for an isolated, disposable environment where the user has consciously accepted unrestricted execution; organizations can disable it with `disableBypassPermissionsMode`. The example in `examples/settings.json` is therefore an opt-in personal configuration, not a recommended checked-in default.
 
-### Further reading
-
-- [Claude Code Hooks](https://code.claude.com/docs/en/hooks)
-- [Claude Code CHANGELOG.md](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
-- [15 Hidden and Under-Utilized Features in Claude Code](https://npomfret.github.io/reading-list-researcher/08a08a991d5e8161.html)
-- [dprint](https://dprint.dev/)
-- [dprint CLI](https://dprint.dev/cli/)
-- [Claude Code Settings](https://code.claude.com/docs/en/settings)
-- [Issue #1271](https://github.com/anthropics/claude-code/issues/1271)
-- [Issue #4787](https://github.com/anthropics/claude-code/issues/4787)
-- [Issue #4956](https://github.com/anthropics/claude-code/issues/4956)
-- [Issue #6850](https://github.com/anthropics/claude-code/issues/6850)
-- [Issue #9875](https://github.com/anthropics/claude-code/issues/9875)
-
-## 9. Parallelisation
+## 10. Parallelisation
 
 ### Subagent parallelism is cheaper than it looks
 
@@ -1345,39 +1180,11 @@ Do not infer more than the product promises: subagents return results to the par
 
 ### Choose the isolation model deliberately
 
-Claude Code now uses worktree isolation by default for background sessions. Do not disable that isolation casually: it prevents a background job from editing the main checkout until it explicitly enters its worktree. The `.worktreeinclude` file can copy required gitignored files, such as a development `.env`, into these isolated worktrees.
+Worktree behavior depends on the surface. Desktop creates a worktree for each new session, and agent view moves a dispatched background session into a worktree when it needs to edit files. An ordinary subagent starts in the current checkout unless its definition sets `isolation: worktree` or the task explicitly requests worktree isolation. Use `claude --worktree` for a separately operated terminal session.
+
+Worktrees branch from the remote default branch by default; set `worktree.baseRef` to `"head"` when isolated work must include local commits or feature-branch state. A `.worktreeinclude` file can copy required gitignored files such as a development `.env`. Review that file carefully because every matching secret is copied into each new isolated checkout.
 
 For several independently managed interactive sessions, either worktrees or sibling clones can be appropriate. Multiple clones remain a simple option when you want complete environment separation; worktrees are lighter when the work shares a repository and you understand the Git workflow. The key decision is ownership, not the directory mechanism.
-
-Why:
-
-- the work has a separate branch and checkout,
-- ownership is clear,
-- required local configuration is available safely,
-- and no two agents edit the same conceptual area.
-
-Set up sibling clones like this:
-
-```text
-<workspace>/project-main
-<workspace>/project-task-a
-<workspace>/project-task-b
-<workspace>/project-review
-```
-
-One isolated workspace, one task, one owner.
-
-### How to manage multiple clones
-
-Use this operating model:
-
-1. keep one integration clone as the main line,
-2. create a worktree or clone only for genuinely independent work,
-3. assign explicit ownership per clone,
-4. fetch and rebase or merge frequently from the main line,
-5. never let two clones edit the same conceptual area without deciding ownership first.
-
-The part to keep is specialization and separation. The part to reject is unnecessary agent or Git complexity.
 
 ### How to avoid merge pain
 
@@ -1396,82 +1203,7 @@ Bad candidates:
 - small changes that would finish before synchronization overhead pays off,
 - tasks that depend on constant shared reasoning across the same files.
 
-Parallelism without discipline produces parallel drift.
-
-### Further reading
-
-- [Claude Code Commands](https://code.claude.com/docs/en/commands)
-- [Claude Code CLI Reference](https://code.claude.com/docs/en/cli-reference)
-- [Someone Finally Documented How to Actually Use Claude Code](https://npomfret.github.io/reading-list-researcher/e3f151d5e47a73c7.html)
-- [15 Hidden and Under-Utilized Features in Claude Code](https://npomfret.github.io/reading-list-researcher/08a08a991d5e8161.html)
-
-## 10. Anti-Patterns
-
-### 1. Bloating `CLAUDE.md`
-
-This is the most common large-project mistake. It comes from good intentions and bad scale assumptions. Official docs and the stronger research sources support concise memory. Community interpretations frequently break that advice by treating root memory as a dumping ground. Do not do that.
-
-### 2. Using hooks to block normal commands
-
-This is brittle, easy to work around, often overly prescriptive, and conceptually lazy. Hooks are for observation and enhancement. Blocking should be rare and narrow, not the main safety mechanism.
-
-### 3. Treating every markdown file as a "rule"
-
-Scattered markdown is not a rules system. If Claude cannot reliably know when to load the instruction, it is just documentation. Use the explicit layer model: root memory, skills, references, hooks, tooling.
-
-### 4. Letting Claude implement before it audits
-
-This is how minimum-change debt accumulates. Audit first. Refactor for readiness second. Implement third. Anything else is just faster decay.
-
-### 4a. Treating "surgical changes" as a complete philosophy
-
-Keeping diffs clean is useful. Avoiding random orthogonal edits is useful. But a blanket "touch as little as possible" rule is not enough for long-running projects. Used naively, it turns into hack preservation, fake backward compatibility, and feature shoehorning. Use surgical discipline to avoid collateral damage, not to avoid necessary refactoring.
-
-### 5. Soft conventions
-
-Statements like "prefer consistency" or "reuse existing patterns when possible" are not enough. Conventions must say what the canonical pattern is, what alternatives are forbidden, and when Claude must stop and ask.
-
-This is especially true for reviews. Claude will often interpret "check everything" as "check enough examples to form an impression." Broad audits need an explicit checklist and a requirement to state scope, gaps, and evidence. If the user asks whether UI foundations are centralised, the setup should force Claude to check every named category and to report whether each category has semantic definitions, not just shared-looking values.
-
-### 6. Silent introduction of new dependencies or abstractions
-
-This is one of the main ways long-lived codebases become conceptually bloated. Every new dependency and abstraction expands the maintenance surface. Claude must never do this silently.
-
-### 7. Leaving dead, redundant, or superseded code behind
-
-This is another form of drift. Claude finishes the new path and leaves the old one in place, keeps an unused helper "for later," or preserves duplicate logic after an extraction because deleting it feels riskier than leaving it. That is how maintenance cost quietly compounds. Code has a tax. If code is no longer needed, it should usually be removed.
-
-### 8. Speculative abstractions and premature frameworks
-
-This is the mirror-image failure mode of minimum-change patching. Claude sees a messy area and jumps straight to a big reusable system that the current codebase has not earned yet. That is how you get abstraction layers with one caller, configuration systems for one case, and framework-shaped code around a single current requirement. Refactor for readiness. Do not build for imaginary future complexity.
-
-### 9. Indiscriminate MCP use
-
-If Claude can answer from code and tests, it should stay there. Browser-first and tool-first debugging are easy ways to waste context and time.
-
-### 10. Treating repo or tool lists as architecture guidance
-
-The ecosystem curation posts are useful for discovering tools. They are not substitutes for a setup philosophy. A list of five good repos does not tell you how to govern a growing codebase.
-
-### 11. Treating isolation as optional for parallel writes
-
-Background sessions use worktree isolation by default for a reason. Whether you choose Claude-managed worktrees or sibling clones for parallel interactive work, do not let several agents write into one checkout without explicit coordination.
-
-### 12. Keeping one endless session alive
-
-The official docs are right about compaction, reset, and session management. Long sessions rot. Use fresh sessions, clear boundaries, and explicit workflow skills instead of trying to carry all project state in one conversation forever.
-
-Context compaction is necessary but it is not a substitute for a clean task boundary. When a session has accumulated unrelated decisions, use `/clear`, `/compact`, `/rewind`, or a new session deliberately; persist the durable project lessons in `CLAUDE.md`, a rule, a skill, or an issue rather than relying on transcript history.
-
-### Further reading
-
-- [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices)
-- [Claude Code Memory](https://code.claude.com/docs/en/memory)
-- [Claude Code Hooks](https://code.claude.com/docs/en/hooks)
-- [Claude Code CLI Reference](https://code.claude.com/docs/en/cli-reference)
-- [Someone Finally Documented How to Actually Use Claude Code](https://npomfret.github.io/reading-list-researcher/e3f151d5e47a73c7.html)
-- [15 Hidden and Under-Utilized Features in Claude Code](https://npomfret.github.io/reading-list-researcher/08a08a991d5e8161.html)
-- [Superpowers repo](https://github.com/obra/superpowers)
+Give each writer a separate checkout and a non-overlapping ownership boundary. Sync long-running branches with the integration branch before their changes diverge substantially.
 
 ## Recommended Baseline
 
@@ -1484,17 +1216,17 @@ If you want a practical default setup, use this:
    - `feature-workflow`
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`
-   - optionally, one imported specialist per genuinely distinct problem area
 4. Reference documents for detailed conventions, kept outside root memory.
 5. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
 6. `settings.json` for allow/deny behavior and permission posture.
-7. A code-first MCP policy.
-8. A hard stop-and-ask rule for any new dependency, pattern, abstraction, or convention gap.
-9. An isolated worktree or clone for each parallel write task, with explicit ownership.
+7. Compiler, language-server, test, and repository-search commands as the first code-investigation layer.
+8. A code graph such as GitNexus only when repository scale and relationship questions justify it.
+9. Structural and static checks such as ast-grep, dependency-cruiser, or Knip where they fit the language and recurring failure modes.
+10. A code-first MCP policy.
+11. A hard stop-and-ask rule for any new dependency, pattern, abstraction, or convention gap.
+12. An isolated worktree or clone for each parallel write task, with explicit ownership.
 
 That is the world-class setup for long-running projects: not the most feature-rich setup, not the cleverest setup, and not the most impressive screenshot. The best setup is the one that keeps Claude useful while making drift, duplication, and sloppy local choices hard to introduce.
-
-If the codebase has repeated specialist needs, the practical default is: keep your own convention skills for repo rules, then layer one external specialist only when the task actually needs it. Do not confuse imported specialist skills with project governance.
 
 ## Official Sources and Further Reading
 
@@ -1506,24 +1238,17 @@ If the codebase has repeated specialist needs, the practical default is: keep yo
 - [Claude Code Commands](https://code.claude.com/docs/en/commands)
 - [Claude Code CLI Reference](https://code.claude.com/docs/en/cli-reference)
 - [Claude Code Settings](https://code.claude.com/docs/en/settings)
+- [Claude Code Model Configuration](https://code.claude.com/docs/en/model-config)
+- [Claude Code Sandboxing](https://code.claude.com/docs/en/sandboxing)
 - [Claude Code Subagents](https://code.claude.com/docs/en/sub-agents)
+- [Claude Code Parallel Agents](https://code.claude.com/docs/en/agents)
+- [Claude Code Worktrees](https://code.claude.com/docs/en/worktrees)
 - [Claude Code What’s New](https://code.claude.com/docs/en/whats-new)
 - [Claude Code CHANGELOG.md](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
-- [Someone Finally Documented How to Actually Use Claude Code](https://npomfret.github.io/reading-list-researcher/e3f151d5e47a73c7.html)
-- [How Boris Cherny Trains AI at Anthropic: The CLAUDE.md Memory System](https://npomfret.github.io/reading-list-researcher/c641144769e8837a.html)
-- [15 Hidden and Under-Utilized Features in Claude Code](https://npomfret.github.io/reading-list-researcher/08a08a991d5e8161.html)
-- [I Compared gstack, Superpowers, and Compound Engineering](https://npomfret.github.io/reading-list-researcher/e502b3549aff92cb.html)
-- [Best GitHub Repos for Claude Code That Will 10x Your Next Project in 2026](https://npomfret.github.io/reading-list-researcher/e6f4d1afbd729e56.html)
-- [Best GitHub repos for Claude code that will 10x your next project](https://npomfret.github.io/reading-list-researcher/5187cc080607fbc8.html)
-- [Anthropic Skills catalog](https://skills.sh/anthropics)
-- [Vercel Labs agent skills](https://skills.sh/vercel-labs/agent-skills)
-- [Vercel Labs next-skills](https://skills.sh/vercel-labs/next-skills)
-- [Addy Osmani web-quality-skills](https://skills.sh/addyosmani/web-quality-skills)
-- [ibelick/ui-skills](https://skills.sh/ibelick/ui-skills/ui-skills)
-- [UI UX Pro Max skill repo](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
-- [Paul Solt: Install These Skills Before Codex Touches Your Xcode Project](https://x.com/paulsolt/status/2042716870512353294?s=46&t=z9lURX7Mfyy7xDgPrYmzog)
-- [Best GitHub repos for Claude Code that will 10x your next project](https://npomfret.github.io/reading-list-researcher/c1aa58026580b10e.html)
-- [Claude Code + Google Stitch 2.0](https://npomfret.github.io/reading-list-researcher/2aa3ed775a7a775e.html)
-- [Sawyer Hood Announces dev-browser Hits 4k GitHub Stars](https://npomfret.github.io/reading-list-researcher/b4cbb3b860869a88.html)
-- [Superpowers repo](https://github.com/obra/superpowers)
-Use the official docs and release notes to verify what Claude Code supports. Use research reports to understand how people are using it, but do not treat community analysis, internal artefacts, or feature rumours as a product contract.
+- [GitNexus repository](https://github.com/nxpatterns/gitnexus)
+- [GitNexus license](https://github.com/nxpatterns/gitnexus/blob/main/LICENSE)
+- [ast-grep documentation](https://ast-grep.github.io/)
+- [dependency-cruiser repository](https://github.com/sverweij/dependency-cruiser)
+- [Knip documentation](https://knip.dev/)
+
+Use the official docs and release notes to verify what Claude Code supports. Use each code tool's primary documentation to verify its current behavior, language coverage, configuration, and license. Treat generated indexes and static-analysis findings as evidence to check against the source, compiler, runtime, and tests.
