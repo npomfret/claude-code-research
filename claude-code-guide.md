@@ -38,6 +38,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It reaches for tools, MCPs, or browser automation before exhausting code-level investigation if those tools are available.
 - It misses reusable workflow instructions when they are not designed to be automatically discoverable from the user's wording.
 - It answers broad review questions from representative samples, then sounds more comprehensive than the evidence supports.
+- It overwhelms the user by presenting every manual check, question, and instruction at once instead of guiding them through the work in manageable stages.
 - It checks whether values are reused without checking whether names carry stable semantic meaning.
 - It treats UI code like prototype presentation work instead of durable product architecture with contracts, naming semantics, and long-term maintenance cost.
 - It treats visible styling as "consistent enough" while missing drift across containers, typography, spacing, borders, corners, shadows, icons, and feedback states.
@@ -963,6 +964,20 @@ It should also include success criteria. In practice, the strongest prompt shape
 - define the checks that prove the task is complete
 
 That gives Claude the benefits of goal-driven execution without collapsing into smallest-diff thinking.
+
+### Progressively disclose manual verification
+
+When verification requires the user to perform several manual checks, Claude should not dump the complete procedure for every check into one message. That may be comprehensive, but it transfers the burden of sequencing, remembering, and reporting the work to the user.
+
+Instead, Claude should first make the scope visible: state how many checks are needed and give a brief, one-line inventory of them. Then guide the user through one check at a time. Explain only the steps for the current check, ask for the result or reaction, and use that feedback before moving to the next one.
+
+A good interaction looks like this:
+
+> I need your help checking eight things. They cover sign-in, navigation, form validation, saving, error handling, responsive layout, keyboard use, and the final confirmation state.
+>
+> Let's start with sign-in. Open the login page, sign in with your test account, and tell me whether you reach the dashboard without seeing an error or unexpected delay.
+
+This gives the user advance warning about the size and shape of the task without confronting them with eight sets of instructions at once. If the checks are independent, Claude can keep a short visible progress record as it goes. It should provide the full checklist up front only when the user asks for it, needs to delegate it, or explicitly wants to run the checks independently.
 
 ## 7. Self-Maintaining Configuration
 
