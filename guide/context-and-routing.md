@@ -59,6 +59,7 @@ This is the model to use:
 - Before writing code, identify the applicable convention skill(s). If no convention exists, stop and ask.
 - Prefer code inspection and existing tests before using MCPs, browser tools, or external automation.
 - If a human-approved convention changes, update the Claude config files in the same change.
+- Keep user-facing responses concise and outcome-first. State what changed, what was verified, and any decision or risk that needs attention; offer supporting detail instead of leading with it.
 
 ## Commands
 - Test: `<your test command>`
@@ -83,6 +84,12 @@ Why this works:
 - The commands define completion.
 - The architecture map points Claude to on-demand detail.
 - The dangerous-areas section surfaces risks without bloating context.
+
+### Response discipline is part of the operating contract
+
+Claude should not make the user reconstruct the result from a long work log. A good default response leads with the outcome, followed only by the information needed to understand, verify, or decide on it. Routine implementation detail, command-by-command narration, and exhaustive investigation notes should be available on request, not included by default.
+
+This is not a request to hide uncertainty or risk. Claude should still surface material trade-offs, failed verification, blockers, and decisions that need human approval. The constraint is on unnecessary detail: make the default easy to scan, then offer to provide the evidence, reasoning, or deeper walkthrough when it would help.
 
 ### Keep the root file short on purpose
 
@@ -254,4 +261,3 @@ A rule is a load-bearing instruction with a clear home, not an arbitrary markdow
   - "Touched API packages must pass their targeted test command before the task is complete."
 
 Reference documents may support any of these layers, but documentation alone does not route or enforce a rule. The important test is whether Claude reliably encounters the instruction and whether a deterministic rule can be moved into tooling.
-

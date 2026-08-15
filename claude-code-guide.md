@@ -39,6 +39,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It misses reusable workflow instructions when they are not designed to be automatically discoverable from the user's wording.
 - It answers broad review questions from representative samples, then sounds more comprehensive than the evidence supports.
 - It overwhelms the user by presenting every manual check, question, and instruction at once instead of guiding them through the work in manageable stages.
+- It over-explains routine work and buries the outcome in implementation detail, making the user read more than is necessary to act or verify the result.
 - It checks whether values are reused without checking whether names carry stable semantic meaning.
 - It treats UI code like prototype presentation work instead of durable product architecture with contracts, naming semantics, and long-term maintenance cost.
 - It treats visible styling as "consistent enough" while missing drift across containers, typography, spacing, borders, corners, shadows, icons, and feedback states.
