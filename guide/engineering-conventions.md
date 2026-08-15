@@ -91,6 +91,21 @@ The convention should be simple:
 
 Almost always, less code is better than more code that does the same job. The burden of proof should be on keeping the extra code, not on deleting it.
 
+#### Comments Are an Exception, Not a Substitute for Clear Code
+
+Claude often adds comments that merely narrate the code immediately below them. Those comments do not improve understanding; they add text to maintain, drift out of date, and make a well-structured implementation harder to scan.
+
+The default should be self-explanatory code. Prefer clear names, small coherent functions, direct control flow, and well-chosen types and abstractions over comments that translate syntax into prose. Do not add comments just because a file or function was changed.
+
+Comments are appropriate when they preserve information the code cannot express clearly on its own, such as:
+
+- a non-obvious constraint, invariant, or external-system quirk
+- an intentionally unusual implementation chosen for a documented trade-off
+- a surprising edge case, workaround, or performance/security concern
+- a decision that would otherwise invite a future contributor to "simplify" the code incorrectly
+
+When a comment is justified, write the reason and the constraint, not a line-by-line description of the mechanism. If the code is unclear and no such context exists, refactor it until it is clear instead of explaining unclear code with a comment.
+
 #### Frontend File Boundaries
 
 Frontend code deserves an explicit warning because Claude is particularly bad here. Left unguided, it will happily pour HTML, CSS, TSX, local state, helper functions, and one-off subviews into a single large component file no matter how complex the screen becomes. That is one of its default failure modes.
@@ -276,4 +291,3 @@ Module-local conventions should cover:
 - and any place where the module really does work differently.
 
 This is why the "router plus on-demand skills" model matters. Global guidance stays short. Local detail is discovered when relevant.
-
