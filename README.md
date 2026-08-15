@@ -8,7 +8,7 @@ The guide focuses especially on Claude's common failure modes: copying patterns 
 
 ## Suggested workflow
 
-Start `codex`—yes, Codex—and paste the following prompt:
+Start `codex` - yes, Codex - and paste the following prompt:
 
 ```
 This project uses Claude Code. Read [this guide](https://raw.githubusercontent.com/npomfret/claude-code-research/refs/heads/main/claude-code-guide.md) and the material it links to so you understand Claude Code's capabilities and limitations.
