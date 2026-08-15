@@ -15,6 +15,8 @@ This project uses Claude Code. Read [this guide](https://raw.githubusercontent.c
 
 Then inspect the project and its recent commit history.
 
+The goal is to turn Claude Code from a capable programmer into a dependable programming team: one that can plan, implement, test, and improve the codebase with minimal supervision, while still surfacing meaningful decisions and risks.
+
 I need a world-class Claude Code environment for this project.
 
 Create or update the `.claude` setup to support that goal. Focus on reusable, project-appropriate guidance; do not add product-specific rules or skills unless they are clearly justified. If you identify useful product-specific additions, propose them to the user at the end rather than adding them automatically.
