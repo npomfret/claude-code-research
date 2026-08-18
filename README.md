@@ -19,5 +19,5 @@ The goal is to turn Claude Code from a capable programmer into a dependable prog
 
 I need a world-class Claude Code environment for this project.
 
-Create or update the `.claude` setup to support that goal. Focus on reusable, project-appropriate guidance; do not add product-specific rules or skills unless they are clearly justified. If you identify useful product-specific additions, propose them to the user at the end rather than adding them automatically.
+Create (or update) our `.claude` setup to support that goal. Focus on reusable, project-appropriate guidance; do not add product-specific rules or skills unless they are clearly justified. If you identify useful product-specific additions, propose them to the user at the end rather than adding them automatically. You are free to update or remove existing sections that you feel are inappropriate for any reason.
 ```
