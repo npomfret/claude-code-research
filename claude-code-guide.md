@@ -12,6 +12,8 @@ The trick to getting Claude Code working well is not to make it obedient everywh
 
 That balance is difficult because the boundaries have to be designed, not wished into existence. A good setup makes the right paths easy to find and the wrong paths hard to take. Skills, rules, agents, references, and commands only help when Claude can discover them from normal task wording and route itself to them without the human remembering a magic invocation. If an important convention or workflow lives in an orphaned markdown file, it may as well not exist.
 
+Skills and scoped rules should be embraced as the primary way to provide deep, highly technical context without bloating always-on memory. They are not optional decoration around `CLAUDE.md`: they are how a serious setup gives Claude focused expertise at the moment a task needs it, while keeping unrelated detail out of the context window. The routing should be automatic whenever the task makes the need inferable. Ideally the user never needs to know that a skill exists, remember its name, or ask Claude to use it; a natural request should cause Claude to load the applicable workflow, conventions, and references itself.
+
 The other half of the system is constraint. Claude will often take the locally convenient route: patch around a weak structure, duplicate a nearby pattern, preserve accidental behavior, weaken types, skip tests, or use a hack that gets the immediate output looking right. This is not malice; it is the default shape of task completion under pressure. The answer is not softer advice. The answer is harsh, explicit, highly visible coding conventions backed by verification, approval gates, and mechanical formatting. The setup should make the correct engineering path more obvious than the shortcut.
 
 In practice, this guide argues for three simultaneous properties:
@@ -167,8 +169,15 @@ Use the official docs and release notes to verify what Claude Code supports. Use
 
 ### Further Reading
 
-- [GitNexus repository](https://github.com/nxpatterns/gitnexus)
-- [ast-grep documentation](https://ast-grep.github.io/)
-- [dependency-cruiser repository](https://github.com/sverweij/dependency-cruiser)
-- [Knip documentation](https://knip.dev/)
-
+- [GitNexus](https://github.com/nxpatterns/gitnexus) — a repository-intelligence and code-graph tool for exploring dependencies, execution flows, symbols, and the likely blast radius of a change.
+- [ast-grep](https://github.com/ast-grep/ast-grep) — a structural search, linting, and codemod tool that matches syntax trees rather than relying on fragile text patterns.
+- [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) — a dependency-analysis tool for JavaScript and TypeScript that can visualize module relationships and enforce architectural boundaries in CI.
+- [Knip](https://github.com/webpro-nl/knip) — a JavaScript and TypeScript project-analysis tool for finding unused files, exports, dependencies, and configuration entries.
+- [Impeccable](https://github.com/pbakaus/impeccable) — a design language and skill set for planning, building, critiquing, auditing, and polishing production interfaces, with deterministic checks for common AI-generated UI defects.
+- [Vercel Agent Skills](https://github.com/vercel-labs/agent-skills) — Vercel's official agent skills, including detailed web-interface guidance and React/Next.js performance rules suitable for adapting into project-scoped UI conventions.
+- [Figma MCP Server Guide](https://github.com/figma/mcp-server-guide) — Figma's official MCP configuration, skills, and design-to-code rules for retrieving structured design context, variables, components, assets, and screenshots.
+- [Playwright MCP](https://github.com/microsoft/playwright-mcp) — Microsoft's browser-automation integration for accessibility-tree-driven UI inspection and testing; its CLI and accompanying skills are often the more context-efficient choice for coding agents.
+- [SwiftUI Agent Skill](https://github.com/twostraws/SwiftUI-Agent-Skill) — Paul Hudson's focused review skill for modern SwiftUI APIs, data flow, navigation, performance, accessibility, and Apple Human Interface Guidelines.
+- [XcodeBuildMCP](https://github.com/getsentry/XcodeBuildMCP) — a CLI, MCP server, and agent skills for building, testing, launching, debugging, and inspecting iOS and macOS projects through Xcode.
+- [Mobile MCP](https://github.com/mobile-next/mobile-mcp) — native iOS and Android simulator, emulator, and device automation using structured accessibility information and screenshots.
+- [Peekaboo](https://github.com/steipete/Peekaboo) — a macOS CLI and MCP server for high-fidelity screenshots and accessibility-driven automation of applications, menus, windows, and controls.

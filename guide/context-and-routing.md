@@ -118,6 +118,8 @@ The official [Skills](https://code.claude.com/docs/en/skills) docs are the stron
 
 Rules deserve first-class treatment in this architecture. They are the right home for standing instructions that should load automatically all the time or automatically for a subtree. Skills are different: they are better for task-shaped workflows, investigation flows, and reusable procedures that Claude should invoke based on intent. Reference files are different again: they hold detail that supports a rule or skill without needing to load constantly.
 
+Use these mechanisms aggressively. Highly technical guidance is valuable precisely because skills and path-scoped rules let it remain narrow: SwiftUI accessibility rules can appear for SwiftUI work, database transaction conventions for persistence work, and UI audit criteria for interface reviews without taxing every unrelated task. The goal is not less guidance. It is more relevant guidance, loaded only where and when it applies.
+
 ### What a skill should do
 
 A skill should answer one question cleanly: "When this task type appears, what exact process and constraints should Claude follow?"
@@ -178,6 +180,8 @@ Assume the user will often forget which skill, rule, or agent exists. The setup 
 
 That means common workflows must be designed so Claude can discover and route to them automatically from ordinary task wording. If a recurring workflow only works when the human remembers a specific slash command or exact skill name, the setup is underspecified.
 
+The stronger target is zero ritual. The user describes the desired outcome; Claude identifies the task and touched subsystem, loads the applicable rules and skills, follows their references, and performs the work. Users may invoke a skill explicitly when they want to, but routine correctness must not depend on them knowing the configuration. If the user repeatedly has to say "use the UI skill" or "check the database rules," treat that as a routing defect in the skill description, rule scope, naming, or root guidance.
+
 This needs to be stated plainly: if you want Claude to use any part of the Claude-side file surface unprompted — root `CLAUDE.md`, local `CLAUDE.md` files, skills, agent definitions, reference documents, settings-adjacent guidance, or other repo-owned Claude config files — it is not enough for those files to merely exist somewhere in the repository. They have to be discoverable. In practice that means each important file needs a clear routing path through root `CLAUDE.md`, skill metadata, agent descriptions, local scope boundaries, or another explicit entry point Claude can infer from normal task wording. Orphaned markdown is not a discoverability strategy.
 
 Rules fit into this discoverability model too. A rule is discoverable when Claude can load it automatically because of its always-on scope or its path scope. That is exactly why rules are useful: they make standing guidance discoverable without requiring the user to remember an invocation step.
@@ -227,23 +231,24 @@ The point is not elegance. The point is to make Claude's default operating behav
 
 ### Auto-loaded vs explicitly loaded skills
 
-Not every skill should be model-invocable by default.
+Safe skills whose relevance can be inferred should normally be model-invocable. Progressive disclosure already keeps their bodies and supporting references out of context until needed, so a technically deep skill does not need to become always-on noise merely to be automatically discoverable.
 
 Use automatic routing for:
 
 - frequent workflow skills,
 - narrow subsystem conventions,
 - recurring bugfix or review flows,
-- and any guidance the user is likely to forget to invoke manually.
+- specialized technical guidance tied to detectable task language, file types, or paths,
+- heavy reference-backed workflows whose entry skill can load the detail progressively,
+- and any useful guidance the user should not have to remember to invoke manually.
 
 Require explicit invocation for:
 
-- heavy reference material,
-- low-frequency release tasks,
-- migration playbooks,
-- experimental or risky workflows.
+- workflows whose activation itself represents a user decision, external side effect, or approval boundary,
+- destructive, privileged, experimental, or unusually costly operations,
+- and genuinely ambiguous tasks where automatic selection would be unsafe.
 
-The official skill frontmatter supports this distinction through `disable-model-invocation` and `user-invocable`; `context: fork` changes execution into a forked agent context and now runs in the background by default unless the skill sets `background: false`. Edits from a backgrounded fork fall outside the parent session's checkpoints, so `/rewind` does not undo them; use git to review and revert them. Use nested directories or path-scoped rules for local applicability. Keep the auto-routed surface small and sharp.
+The official skill frontmatter supports this distinction through `disable-model-invocation` and `user-invocable`; `context: fork` changes execution into a forked agent context and now runs in the background by default unless the skill sets `background: false`. Edits from a backgrounded fork fall outside the parent session's checkpoints, so `/rewind` does not undo them; use git to review and revert them. Use nested directories or path-scoped rules for local applicability. Keep routing metadata precise and non-overlapping, but do not hide safe, valuable expertise behind slash commands merely to keep the skill list short.
 
 ### Put each rule in its enforceable layer
 
