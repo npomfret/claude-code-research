@@ -145,7 +145,9 @@ If you want a practical default setup, use this:
 
 That is the world-class setup for long-running projects: not the most feature-rich setup, not the cleverest setup, and not the most impressive screenshot. The best setup is the one that keeps Claude useful while making drift, duplication, and sloppy local choices hard to introduce.
 
-## Official Sources and Further Reading
+## Official Sources
+
+Use the official docs and release notes to verify what Claude Code supports. Use each code tool's primary documentation to verify its current behavior, language coverage, configuration, and license. Treat generated indexes and static-analysis findings as evidence to check against the source, compiler, runtime, and tests.
 
 - [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices)
 - [Claude Code Memory](https://code.claude.com/docs/en/memory)
@@ -162,10 +164,11 @@ That is the world-class setup for long-running projects: not the most feature-ri
 - [Claude Code Worktrees](https://code.claude.com/docs/en/worktrees)
 - [Claude Code What’s New](https://code.claude.com/docs/en/whats-new)
 - [Claude Code CHANGELOG.md](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
+
+### Further Reading
+
 - [GitNexus repository](https://github.com/nxpatterns/gitnexus)
-- [GitNexus license](https://github.com/nxpatterns/gitnexus/blob/main/LICENSE)
 - [ast-grep documentation](https://ast-grep.github.io/)
 - [dependency-cruiser repository](https://github.com/sverweij/dependency-cruiser)
 - [Knip documentation](https://knip.dev/)
 
-Use the official docs and release notes to verify what Claude Code supports. Use each code tool's primary documentation to verify its current behavior, language coverage, configuration, and license. Treat generated indexes and static-analysis findings as evidence to check against the source, compiler, runtime, and tests.
