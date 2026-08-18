@@ -136,6 +136,14 @@ A child that sizes itself from a distant container can bypass padding and frames
 
 An opaque overlay, launch curtain, skeleton, or transition does not automatically hide the accessibility elements underneath it. Hiding the overlay itself can leave invisible controls focusable and actionable. Treat accessibility presentation as part of the shared component boundary. If the overlay is purely decorative and does not block interaction, keep it out of the accessibility tree. If it blocks interaction, hide or make the covered content inert and expose an accessible progress, status, or dismissal control as appropriate.
 
+### Never make waiting look like a frozen interface
+
+Every operation that can take perceptible time needs an explicit pending state. A spinner is appropriate when progress is indeterminate; prefer determinate progress when meaningful completion can be measured, and a skeleton when the emerging structure matters. Preserve the user's context, prevent accidental duplicate submissions, and provide cancellation when abandoning the work is safe and useful. Announce important progress and completion states to assistive technologies rather than relying on animation alone.
+
+The interface should acknowledge an action immediately, even if a progress indicator is delayed briefly to avoid a flash during very fast operations. Define loading, empty, partial, success, failure, retry, cancellation, and timeout as real component states—not scattered booleans or ad hoc overlays. Long-running work must not prevent input, animation, navigation, or accessibility from responding.
+
+Keep network access, file operations, decoding, database work, and expensive or unbounded computation off the UI thread. Perform only the small state and rendering updates that the UI framework requires there. Make thread ownership explicit at asynchronous boundaries, test slow and failed paths deliberately, and use responsiveness monitoring to catch regressions that a successful result cannot reveal.
+
 ## Verify neutral and visible changes differently
 
 Split commits along the verifiability line. A mechanically neutral substitution and a deliberate pixel change should not share a commit merely because they touch one target. Reviewers should be able to prove or revert one without losing the other.
@@ -223,11 +231,11 @@ description: Use automatically for design-system refactors, theme or token migra
 3. Record build, behavioural, and visual confidence separately; audit exclusions and disabled coverage legs.
 4. Decide rebuild-time versus runtime variation.
 5. Model semantic roles, complete variation axes, and correlated values.
-6. Read every candidate implementation and trace layout, effects, and accessibility across its composed callers.
+6. Read every candidate implementation and trace layout, effects, accessibility, pending states, and thread ownership across its composed callers.
 7. Converge components before sweeping remaining call sites.
 8. Delete replaced paths and newly dead tokens in the same change.
 9. Split provably neutral substitutions from visible design decisions.
-10. Verify with tests, arithmetic, structural comparisons, predicted visual diffs, and state-validated captures.
+10. Verify with tests, arithmetic, structural comparisons, predicted visual diffs, state-validated captures, and deliberately slow asynchronous paths.
 11. Name residual coverage gaps without overstating completion.
 12. Restore, replace, or explicitly retire any coverage leg disabled by a blocking defect.
 13. Publish the as-built specification and promote durable decisions.
