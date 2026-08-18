@@ -2,7 +2,7 @@
 
 Design-system work is not a styling sweep. It is a cross-cutting refactor of the product's visual semantics, shared component boundaries, platform bindings, and verification model. Claude is especially likely to get this work wrong because a locally plausible token substitution can look like progress while leaving the repository with two competing UI languages.
 
-This chapter is derived from a real multi-target Apple application that retrofitted a token layer and shared component boundary across an iPhone app, menu-bar utility, widgets, and marketing website without an existing UI snapshot suite. The detailed [failure catalogue](https://github.com/npomfret/no-spoilers/blob/main/FACTORING-A-DESIGN-SYSTEM.md) remains the living evidence base; this chapter extracts the reusable operating rules.
+This chapter is derived from a real multi-target application that retrofitted a token layer and shared component boundary across several user-facing surfaces without an existing UI snapshot suite. Its conclusions were checked against another application whose semantic token table was already mature but whose adaptive layouts and rendered-evidence system were under active pressure. The detailed [failure catalogue](https://github.com/npomfret/no-spoilers/blob/main/FACTORING-A-DESIGN-SYSTEM.md) remains the living evidence base; this chapter extracts the reusable operating rules.
 
 ## Start with a falsifiable outcome
 
@@ -21,17 +21,21 @@ Do not begin from a representative reading of the likely files. Count first. Inv
 
 Record the baseline as numbers. The initial counts become acceptance criteria and expose categories that prose inspection misses. Keep a documented-literal escape hatch for values that should remain local, but require the code to say why they are not tokens.
 
+An escape checker is valuable, but score it against the claim it actually proves. A rule that rejects raw colours, fonts, spacing, or radii outside the token layer proves that call sites route through the intended boundary. It does not prove that changing a token reaches every applicable surface, that correlated values are used together, that a shared component has not been reimplemented, or that the resolved result is readable. Keep routing compliance and rendered outcome as separate acceptance criteria.
+
 ## Establish the confidence baseline
 
 Before changing the structure, record three kinds of confidence separately:
 
 | Confidence | What establishes it | What it does not establish |
 | --- | --- | --- |
-| Build | Every affected target compiles | Correct behavior or rendering |
+| Build | Every affected target compiles | Correct behaviour or rendering |
 | Behavioural | Tests or deterministic checks pin observable behaviour | Visual fidelity |
 | Visual | Validated captures, snapshots, measurements, or manual inspection cover named surfaces and states | Uncovered targets or states |
 
-Never collapse these into one word such as "verified." If a surface has no capture path, state that as a residual risk every time status is summarized. Improved coverage mitigates the gap; it does not retroactively eliminate it.
+Never collapse these into one word such as "verified." If a surface has no capture path, state that as a residual risk every time status is summarised. Improved coverage mitigates the gap; it does not retroactively eliminate it.
+
+Audit the verification system itself before trusting its green result. Record excluded accessibility checks, disabled device or orientation legs, unreachable screens, simulator-only assumptions, ignored targets, and capture helpers that skip work under some configurations. A suite described as an accessibility or visual audit may legitimately exclude noisy checks, but those exclusions become named coverage gaps rather than disappearing from the confidence statement.
 
 ## Model the target before migrating call sites
 
@@ -100,7 +104,37 @@ The default content boundary should be:
 
 A component that requires the domain model, a surface enum, and a formatting policy is probably owning too much. Hidden fallbacks such as `countdown ?? location` are another warning: substituting one semantic category for another is not graceful degradation. Make absence expressible instead.
 
-Do not let majority vote overrule semantics, accessibility, an existing specification, or platform behavior. Majority is a useful lowest-churn fallback only when the disagreement carries no stronger meaning. Record which rule resolved each convergence.
+Do not let majority vote overrule semantics, accessibility, an existing specification, or platform behaviour. Majority is a useful lowest-churn fallback only when the disagreement carries no stronger meaning. Record which rule resolved each convergence.
+
+## Avoid adaptive-UI anti-patterns that bypass the system
+
+Design-system refactors often expose layout and accessibility failures that a token inventory cannot see. Watch for these shapes while reading candidate components and their callers.
+
+### Do not feed a measurement back into the tree that produced it
+
+A geometry read becomes dangerous when it writes state used by spacing, padding, sizing, or candidate selection inside the measured subtree. During resize, rotation, platform text-scaling changes, or animation, layout output then becomes input to the next layout while the first is still settling. The result may oscillate, re-enter layout, or hang at high CPU even though every individual value is valid.
+
+Prefer a layout primitive that decides arrangement and leftover distribution from one proposal in one pass. If measurement is unavoidable, keep the value out of the subtree whose fit it can change, and prove convergence under the most disruptive supported resize—not only at a stable viewport.
+
+### Do not nest adaptive candidate ladders casually
+
+Candidate-based layout tools are appealing component boundaries because each component can list its preferred arrangements. Nested, their costs multiply: an outer component may measure every inner candidate for every outer candidate, for every repeated row. A locally cheap extracted component can therefore make its real composition many times slower.
+
+Inventory adaptive boundaries as well as shared components. Benchmark the deepest realistic composition, with the largest supported collection and text size, before and after convergence. Prefer arithmetic or a single custom layout where the inputs are measurable and the arrangement is one coherent decision.
+
+### Do not let local fitting cancel global semantics
+
+Routing text through a semantic type role is not enough if a call site later applies a severe minimum scale factor, one-line truncation, or a fixed frame. Under pressure, the local modifier silently undoes the user's requested text size while the token checker remains green. Restack or wrap before shrinking glance-critical content; if shrinking is genuinely acceptable, make that part of the component contract and test its floor.
+
+The same problem occurs with colour and state. A descendant may correctly choose a warning or selection colour only for an ancestor's grayscale, opacity, blend mode, or disabled treatment to erase it. In many UI frameworks, effects applied by an ancestor cannot be undone reliably by a descendant. Apply state treatments at the smallest boundary that owns the meaning, or return a correlated style that says which content retains identity and which recedes.
+
+### Keep a reusable component inside its proposed bounds
+
+A child that sizes itself from a distant container can bypass padding and frames introduced by its reusable parent. The arithmetic may return the same nominal width and still change which ancestor the width was measured against, producing overflow only in the composed screen. Prefer the immediate layout proposal. If a component deliberately escapes an intermediate content constraint on large canvases, model that as an explicit capability with a true no-op below its threshold, not as a container-sized fallback that still overrides intermediate constraints.
+
+### Visual occlusion is not accessibility occlusion
+
+An opaque overlay, launch curtain, skeleton, or transition does not automatically hide the accessibility elements underneath it. Hiding the overlay itself can leave invisible controls focusable and actionable. Treat accessibility presentation as part of the shared component boundary. If the overlay is purely decorative and does not block interaction, keep it out of the accessibility tree. If it blocks interaction, hide or make the covered content inert and expose an accessible progress, status, or dismissal control as appropriate.
 
 ## Verify neutral and visible changes differently
 
@@ -123,6 +157,10 @@ Visual verification also needs discipline:
 6. Inspect captures directly even when automated checks pass.
 
 "I opened it and nothing moved" is not visual evidence. One viewport, one state, and human memory do not establish neutrality.
+
+Treat capture infrastructure as evidence-producing code. A screenshot named for a state must contain that state; existence of the target element below the fold is not enough. Wait for transitions to settle, derive orientation labels from the rendered canvas rather than from the requested device state, and prefer no capture to a confidently mislabelled one. If one pathological surface forces a device, orientation, appearance, or accessibility leg to be disabled globally, make restoring, replacing, or explicitly retiring that leg part of the blocking defect's completion criteria. Otherwise one local bug silently erases visual confidence for unrelated surfaces.
+
+Use a risk-based surface matrix rather than the full Cartesian product of screens, states, viewports, appearances, languages, and accessibility settings. Each selected case should expose a distinct rule. Pairwise coverage can be a useful minimum where interactions are understood; add targeted combinations for known high-risk interactions. The matrix should still name the unselected combinations, so economy does not become accidental omission.
 
 ## Resolve divergent bindings with evidence
 
@@ -154,6 +192,8 @@ A task ledger is valuable working memory. Keep inventories, phase status, change
 
 "We decided not to" is not enough. Record why, what would need to change, and what the acceptable implementation should look like if the condition is later met.
 
+Do not let the manual-review ledger become a permanent second backlog. Every entry should name why automation cannot settle it, the cheapest evidence that can, and the destination of any durable conclusion. Promote stable layout, contrast, state, and accessibility invariants into deterministic checks or named capture stories; keep subjective motion quality, hardware-only behaviour, and product judgement manual. Delete an entry only when its replacement evidence exists.
+
 ## Recommended automatically routed skill
 
 Projects undertaking this work should create a focused skill rather than placing the whole failure catalogue in `CLAUDE.md`.
@@ -169,7 +209,7 @@ Projects undertaking this work should create a focused skill rather than placing
     decision-record.md
 ```
 
-The entry skill should be automatically discoverable from normal requests about design systems, theme or token migrations, reskins, UI consistency, semantic colours, component convergence, SwiftUI design systems, or cross-platform visual alignment.
+The entry skill should be automatically discoverable from normal requests about design systems, theme or token migrations, reskins, UI consistency, semantic colours, component convergence, adaptive UI, or cross-platform visual alignment.
 
 ```md
 ---
@@ -180,16 +220,17 @@ description: Use automatically for design-system refactors, theme or token migra
 
 1. Define and score the falsifiable one-edit outcome.
 2. Inventory and count every category, surface, state, and binding.
-3. Record build, behavioural, and visual confidence separately.
+3. Record build, behavioural, and visual confidence separately; audit exclusions and disabled coverage legs.
 4. Decide rebuild-time versus runtime variation.
 5. Model semantic roles, complete variation axes, and correlated values.
-6. Read every candidate implementation before converging components.
+6. Read every candidate implementation and trace layout, effects, and accessibility across its composed callers.
 7. Converge components before sweeping remaining call sites.
 8. Delete replaced paths and newly dead tokens in the same change.
 9. Split provably neutral substitutions from visible design decisions.
-10. Verify with tests, arithmetic, structural comparisons, and predicted visual diffs.
+10. Verify with tests, arithmetic, structural comparisons, predicted visual diffs, and state-validated captures.
 11. Name residual coverage gaps without overstating completion.
-12. Publish the as-built specification and promote durable decisions.
+12. Restore, replace, or explicitly retire any coverage leg disabled by a blocking defect.
+13. Publish the as-built specification and promote durable decisions.
 ```
 
 The reference files should contain project-specific commands, paths, surface inventories, token semantics, screenshot procedures, and verification thresholds. The skill supplies the stable workflow; the project supplies the current facts.
