@@ -170,6 +170,8 @@ Done correctly, this pays off twice:
 
 Claude needs explicit pressure here because its default instinct is local convenience. It will happily inline spacing values, duplicate border styles, pick ad hoc icon treatments, and repeat animation choices file by file unless the project establishes a central semantic system and tells it to use it.
 
+Creating or retrofitting that system needs a stricter workflow than ordinary component work. See [Design-System Refactors](design-system-refactors.md) for the inventory, token-modelling, component-convergence, sequencing, and cross-surface verification rules. In particular, do not mistake tokenising literals for completing a design system, and do not converge components merely because they look similar.
+
 #### Structured Logging
 
 Logging deserves to be called out explicitly because Claude is reliably bad at it. This is not just a style issue. It is a data-quality issue.

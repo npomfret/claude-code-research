@@ -117,6 +117,7 @@ This overview keeps the operating model and current-product summary in one place
 
 - [Context and Routing](guide/context-and-routing.md) — `CLAUDE.md`, rules, skills, memory, and discoverability.
 - [Engineering Conventions](guide/engineering-conventions.md) — type safety, abstractions, duplication, UI architecture, logging, APIs, exceptions, and formatting.
+- [Design-System Refactors](guide/design-system-refactors.md) — evidence-derived guidance for inventorying, modelling, sequencing, and verifying cross-surface UI-system migrations.
 - [Database Correctness and Scale](guide/database.md) — normalization, transactions, constraints, indexes, and safe denormalization decisions.
 - [Testing and Quality](guide/testing-and-quality.md) — TDD, convention design, stop-and-ask rules, and drift audits.
 - [Code Intelligence](guide/code-intelligence.md) — repository search, GitNexus, ast-grep, dependency-cruiser, and Knip.

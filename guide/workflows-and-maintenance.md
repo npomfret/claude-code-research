@@ -75,6 +75,8 @@ It should also include success criteria. In practice, the strongest prompt shape
 
 That gives Claude the benefits of goal-driven execution without collapsing into smallest-diff thinking.
 
+Design-system migrations need a specialized version of this workflow because component convergence must precede the broad token sweep, and provably neutral substitutions should be separated from visible design decisions. See [Design-System Refactors](design-system-refactors.md) for that sequencing and its verification model.
+
 ### Progressively disclose manual verification
 
 When verification requires the user to perform several manual checks, Claude should not dump the complete procedure for every check into one message. That may be comprehensive, but it transfers the burden of sequencing, remembering, and reporting the work to the user.
@@ -173,4 +175,3 @@ Use three triggers to audit config:
 - when the codebase starts diverging from written instructions.
 
 If the docs say one thing and the code does another, resolve it immediately. Do not let the contradiction sit.
-
