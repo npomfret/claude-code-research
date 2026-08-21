@@ -57,6 +57,7 @@ This is the model to use:
   5. explain the plan before broad or risky edits
 - Never introduce a new dependency, pattern, abstraction, file layout, or naming scheme without explicit approval.
 - Construct objects and select concrete external adapters only at explicit application boundaries. Functionality code receives required collaborators through constructors or function arguments; it must not discover them through globals, service locators, or hidden I/O.
+- Mutable static or global state is banned, including singletons, shared instances, global registries, module-level mutable values, and global caches. Give state an explicitly constructed owner and lifetime, then pass it to consumers. Immutable constants and stateless pure functions are not state.
 - Preserve encapsulation: give each object or module ownership of its state, invariants, and behavior; expose narrow intent-based APIs, and do not substitute helpers, forwarding interfaces, or mutable data access for a real abstraction.
 - Do not add code comments unless documenting a non-obvious public API contract or an unavoidable external constraint, quirk, or hack. First make the code self-explanatory; permitted comments explain why, never narrate what.
 - Before writing code, identify the applicable convention skill(s). If no convention exists, stop and ask.
@@ -221,7 +222,7 @@ user-invocable: true
 
 1. Load the applicable convention skills before writing code.
 2. Audit the touched code paths and identify the current canonical patterns.
-3. Inspect touched functionality for hidden construction, service location, global state, configuration reads, or I/O. Plan to move those concerns to an explicit boundary and pass required capabilities inward.
+3. Inspect touched functionality for hidden construction, service location, mutable static or global state, configuration reads, or I/O. Remove mutable globals from the touched path; move state into explicitly constructed, lifetime-owned objects and pass required capabilities inward.
 4. Identify which object or module should own the affected state, invariants, and decisions. Check that callers can use a narrow intent-based API without coordinating the owner's internals.
 5. Ask: "If I were starting from scratch, knowing what I know now, what is the best approach?"
 6. Assume the area is not ready for the new feature until proven otherwise. Refactor, extract, and encapsulate until it is a clean host for the change.

@@ -127,6 +127,12 @@ unit test   -> construct the same functionality with fakes
 
 Dependency direction matters more than directory names or a prescribed number of layers. The entry point and construction layer know concrete infrastructure. Functionality code depends on narrow roles or capabilities supplied by the caller; it does not know how production implementations are found or assembled. This applies in object-oriented and non-object-oriented code alike: use constructor parameters for stable object collaborators, function parameters or explicit context values for functional code, and method parameters for data that varies per call.
 
+Mutable static and global state are banned. This includes language-level globals, module- or file-scoped mutable variables, singleton instances, static mutable properties, global registries, shared caches, and convenience APIs such as `shared`, `current`, or `default` when they conceal process-wide mutable state. These constructs hide dependencies and lifetimes, couple otherwise unrelated code, leak state between tests, make parallel execution unsafe, and force tests to reset global state in the correct order. A unit that depends on them cannot be tested honestly in isolation.
+
+Do not work around the ban by placing mutable state behind static accessors or a singleton protocol. That changes the syntax, not the architecture. The state must belong to an explicitly constructed object with a deliberate lifetime, and that object—or a narrow capability backed by it—must be passed to its consumers.
+
+The ban is on **state**, not on every use of type-level syntax. Immutable compile-time constants, stateless pure functions, and namespaced constructors or factory methods are acceptable because they do not retain mutable process-wide information. When an operating system or framework exposes unavoidable global state, access it only in a boundary adapter; inject that adapter into functionality code so tests can supply an isolated implementation.
+
 Required rules:
 
 - Make every required, long-lived collaborator a constructor parameter. A successfully constructed object should be ready to use and should not need later property injection or hidden initialization.
@@ -139,12 +145,15 @@ Required rules:
 - Do not give constructors default arguments that silently create production clients or touch external state. Convenience production construction belongs in the composition root or an explicitly named boundary factory.
 - Do not introduce an interface for every class mechanically. Add a role boundary where callers need a substitutable capability, where external infrastructure must be adapted, or where tests need to observe a collaboration. Plain values and self-contained implementation details do not need ceremonial interfaces.
 - Treat a long constructor dependency list as design feedback. It may reveal that a class owns too many responsibilities; do not conceal the problem inside a dependency bag or service locator.
+- Give caches, stores, sessions, clocks, schedulers, and other stateful services explicit owners and lifetimes in the composition layer. Tests receive fresh instances; they must never depend on global reset hooks or execution order.
 
 Forbidden alternatives in functionality code:
 
 - constructing a concrete network, database, filesystem, analytics, clock, or similar client at the point of use
 - reading global configuration, environment, disk, keychains, user defaults, or network state without an injected boundary
 - reaching through singletons, global registries, application delegates, static mutable state, or service locators to obtain collaborators
+- storing application, session, request, cache, test, or feature state in global variables, module-level mutable values, static properties, or shared instances
+- making tests mutate or reset process-wide state before or after execution
 - accepting a general container or undifferentiated dependency bag and pulling services from it on demand
 - requiring a full application, framework, database, or network boot merely to unit test a domain or application behavior
 

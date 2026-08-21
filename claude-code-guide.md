@@ -36,6 +36,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It sometimes over-engineers in the opposite direction by introducing speculative abstractions that the current codebase does not actually need.
 - It avoids refactoring and test-first discipline unless forced to do them.
 - It hides dependencies by constructing clients, repositories, clocks, configuration, or other external capabilities inside behavior code, making units difficult to instantiate and test in isolation.
+- It reaches for mutable static or global state, singletons, and shared instances, creating hidden coupling between callers and tests whose outcomes depend on execution order.
 - It litters otherwise clear code with narration, headings, and explanatory comments instead of trusting good names, types, abstractions, and control flow.
 - It is bad at keeping code formatting consistent unless formatting is handled mechanically.
 - It silently introduces new abstractions, dependencies, or file shapes unless explicitly told to stop and ask.
