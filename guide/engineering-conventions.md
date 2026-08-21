@@ -13,6 +13,7 @@ Your convention system must cover every area where Claude can invent a new local
 - naming conventions,
 - file and module layout,
 - import direction and boundary rules,
+- application assembly, constructor injection, and external-resource boundaries,
 - shared-vs-local abstraction rules,
 - error handling,
 - result and exception patterns,
@@ -58,6 +59,27 @@ The important mindset is that the compiler is helping. If a type-safe language o
 
 #### Abstractions, Encapsulation, and the Helper Smell
 
+Claude does not naturally create strong abstractions or preserve encapsulation. It often produces procedural code spread across loosely related services, helpers, and mutable data structures. Even when it extracts an interface or function, the result may only relocate code without giving the concept a coherent boundary. Extraction is not automatically abstraction, and an interface is not automatically good design.
+
+A useful abstraction represents a stable concept or role while hiding details that callers should not need to know. Good abstractions reduce what the rest of the system must understand: they expose a small behavioral contract, use the language of the problem, and leave room for the implementation to change without coordinated edits across callers. Poor abstractions merely rename mechanics, forward every method of another type, or collect unrelated operations under vague names such as `Helper`, `Manager`, `Utils`, or `Service`.
+
+Encapsulation is the ownership side of the same design. The object or module that owns state should also own the rules that keep that state valid. Callers should ask it to perform meaningful operations, not retrieve its internals, manipulate them elsewhere, and push the result back. Avoid public mutable fields, bags of getters and setters, leaked persistence or transport representations, and orchestration that forces callers to understand a callee's private workflow.
+
+Required rules:
+
+- Design around cohesive responsibilities and domain or application language, not around technical miscellany.
+- Put data and the behavior that maintains its invariants in the same object or module where the language permits it.
+- Expose the smallest API that lets callers express intent. Keep representation, sequencing, intermediate state, and implementation choices private.
+- Tell an object or module what outcome is required rather than asking for its state and implementing its behavior in the caller.
+- Make invalid state difficult or impossible to construct. Validate at the boundary, then preserve the invariant internally.
+- Prefer narrow role-based collaborator contracts over broad interfaces that reveal an implementation's entire surface.
+- Let the consumer's need shape a collaborator abstraction. Do not mechanically create an interface mirroring every concrete class.
+- Test through public behavior and observable collaborations. Do not weaken encapsulation or expose internals merely to make tests reach them.
+- When a change requires several callers to repeat the same knowledge, look for the concept that should own that knowledge and move the behavior there.
+- When no stable concept or second implementation pressure exists, keep a concrete implementation. Do not add interfaces, layers, or wrappers as ceremony.
+
+A good review question is: **what knowledge does this unit hide, and what invariant or decision does it own?** If the answer is "none; it just forwards calls" or "callers assemble the behavior themselves," the boundary is probably not earning its existence.
+
 Claude is also too eager to throw "helpers" at a design problem. That is one of its laziest habits. Instead of stepping back, examining the shape of the code, and improving the owning abstraction, it will often patch over the discomfort by adding another helper function, wrapper, or utility file near the problem.
 
 That usually means one of two things:
@@ -76,6 +98,72 @@ The convention should push Claude toward the harder-looking but usually better m
 
 In practice, code is almost never "already ready" for the next requirement. It has to be grown into readiness through repeated inspection and refactoring. Claude should be trained to look, consider, design, and refactor before it writes the next line of implementation code. Throwing a helper at the problem is often just a way to avoid that work.
 
+The acceptance test is not the number of classes or the absence of duplication. After the refactor, callers should know less, the owning unit should control more of its own validity and behavior, and a future implementation change should affect fewer places. If those properties did not improve, Claude probably moved code rather than improving the abstraction.
+
+#### Construct at the Edges; Pass Capabilities Inward
+
+Claude frequently writes code that is difficult to test because it hides object construction and external access inside the code that performs the useful behavior. A service creates its own HTTP client, a view model reaches for a singleton, a method reads configuration from the environment, or a repository opens its own database connection. The dependency is real, but it is absent from the type's public construction contract. Unit tests then need global mutation, framework bootstrapping, monkey-patching, real I/O, or knowledge of private implementation details merely to exercise one behavior.
+
+The governing rule should be stated plainly:
+
+> Construct objects at the application's edges. Pass required collaborators through constructors. Pass request-specific data through method or function arguments. Functionality code must not discover or create its own external dependencies.
+
+"Dependency injection" is the established industry term, but the useful practice is simpler than the term suggests. Separate configuring and building the system from using it. A typical executable has three responsibilities:
+
+1. **Entry point**: read command-line arguments, environment, configuration, and framework state; validate and convert them into explicit values.
+2. **Construction layer or composition root**: choose concrete adapters, construct the object graph, manage lifetimes, and wire collaborators together. Builders or factories can keep this assembly readable.
+3. **Functionality code**: run application and domain behavior using only the values and capabilities it was given.
+
+The control flow should remain obvious:
+
+```text
+entry point -> read and validate configuration
+            -> build application object graph
+            -> start application or invoke use case
+
+unit test   -> construct the same functionality with fakes
+            -> invoke behavior directly
+```
+
+Dependency direction matters more than directory names or a prescribed number of layers. The entry point and construction layer know concrete infrastructure. Functionality code depends on narrow roles or capabilities supplied by the caller; it does not know how production implementations are found or assembled. This applies in object-oriented and non-object-oriented code alike: use constructor parameters for stable object collaborators, function parameters or explicit context values for functional code, and method parameters for data that varies per call.
+
+Required rules:
+
+- Make every required, long-lived collaborator a constructor parameter. A successfully constructed object should be ready to use and should not need later property injection or hidden initialization.
+- Keep the composition root near the process, application, scene, command, request-handler, or framework entry point. Manual wiring is often sufficient. If the project uses a dependency-injection container, resolve from it only in this construction layer; never pass the container into functionality code.
+- Treat network clients, databases, filesystems, clocks, random and identifier generators, schedulers, notification systems, analytics, process state, and configuration sources as external capabilities. Pass them in when behavior depends on them.
+- Read environment variables, user defaults, files, secrets, and remote configuration at an explicit boundary. Convert raw configuration into typed values before passing it inward.
+- Keep framework-owned types and callbacks at adapters where practical. Translate them into application-level values and calls rather than making the whole object graph depend on the framework.
+- Use a narrow factory or builder when objects genuinely must be created later from runtime data. Inject that factory into the caller, and give the factory its own dependencies when it is assembled.
+- Keep factories specific to the object or subgraph they create. They must not expose a generic container, registry, resolver, or `getService` API; that merely hides dependencies behind a service locator.
+- Do not give constructors default arguments that silently create production clients or touch external state. Convenience production construction belongs in the composition root or an explicitly named boundary factory.
+- Do not introduce an interface for every class mechanically. Add a role boundary where callers need a substitutable capability, where external infrastructure must be adapted, or where tests need to observe a collaboration. Plain values and self-contained implementation details do not need ceremonial interfaces.
+- Treat a long constructor dependency list as design feedback. It may reveal that a class owns too many responsibilities; do not conceal the problem inside a dependency bag or service locator.
+
+Forbidden alternatives in functionality code:
+
+- constructing a concrete network, database, filesystem, analytics, clock, or similar client at the point of use
+- reading global configuration, environment, disk, keychains, user defaults, or network state without an injected boundary
+- reaching through singletons, global registries, application delegates, static mutable state, or service locators to obtain collaborators
+- accepting a general container or undifferentiated dependency bag and pulling services from it on demand
+- requiring a full application, framework, database, or network boot merely to unit test a domain or application behavior
+
+There are legitimate local constructions. Functionality code may freely create values and private implementation objects that are deterministic, side-effect-free, cheap, and not independently variable. The prohibition is against hidden **collaborators and external capabilities**, not every use of a constructor. A domain-level factory may also create domain objects as part of the behavior it represents. The test is whether creation conceals a dependency or side effect that a caller or test needs to control.
+
+Deferred construction sometimes repeats the pattern at a smaller boundary. For example, a running job may receive data that determines which worker subgraph is required. The job should receive a narrow `WorkerFactory`; the composition layer constructs that factory with its network and persistence adapters, and the factory constructs workers from the runtime data. The job still does not reach into a global container or instantiate production adapters itself.
+
+This structure makes unit testability a design property rather than a testing trick. Before accepting new functionality code, Claude should be able to answer yes to all of these:
+
+- Can the unit be constructed in a test with in-memory values, stubs, or fakes and without starting the application framework?
+- Are all operations that can perform I/O, observe time or randomness, or mutate external state visible in the constructor or call signature?
+- Can the test invoke the behavior without disk, network, environment mutation, sleeps, or global cleanup?
+- Does production wiring live in an obvious construction boundary that can be inspected separately?
+- Would a reader know the unit's required capabilities from its public API rather than searching its method bodies?
+
+Teach this as an automatically loaded engineering convention, not a phrase the user must remember to add to every prompt. Keep the short governing rule in root `CLAUDE.md`; route feature, refactor, and testability work to this detailed convention; require the feature workflow to inspect new and touched code for hidden construction and I/O; and, where the language permits it, enforce dependency direction with architecture tests or static import rules. Tests should normally construct the unit directly with explicit fakes. If that is awkward, Claude should treat the awkwardness as evidence about the design and improve the boundary before adding more mocking machinery.
+
+This is closely aligned with the design pressure described in [Growing Object-Oriented Software, Guided by Tests](https://growing-object-oriented-software.com/), while the specific name for the single application assembly boundary is Mark Seemann's [Composition Root](https://blog.ploeh.dk/2011/07/28/CompositionRoot/). Martin Fowler's broader formulation is also useful: the essential separation is between [configuring services and using them](https://martinfowler.com/articles/injection.html#SeparatingConfigurationFromUse).
+
 #### Duplication, Redundancy, and the Code Tax
 
 Claude also needs explicit pressure against leaving extra code behind. It often misses an existing implementation and re-creates it, or it completes a refactor but leaves the old path, wrapper, branch, helper, or partially superseded code lying around "just in case."
@@ -93,18 +181,36 @@ Almost always, less code is better than more code that does the same job. The bu
 
 #### Comments Are an Exception, Not a Substitute for Clear Code
 
-Claude often adds comments that merely narrate the code immediately below them. Those comments do not improve understanding; they add text to maintain, drift out of date, and make a well-structured implementation harder to scan.
+Claude loves to write comments, including comments that make elegant code worse. It narrates the next statement, labels short blocks, restates names in prose, adds section banners inside small files, and leaves tutorial-style explanations for ordinary language features. These comments interrupt reading, duplicate the implementation, become stale, and train future changes to preserve noise rather than clarity.
 
-The default should be self-explanatory code. Prefer clear names, small coherent functions, direct control flow, and well-chosen types and abstractions over comments that translate syntax into prose. Do not add comments just because a file or function was changed.
+The rule should therefore be strict:
 
-Comments are appropriate when they preserve information the code cannot express clearly on its own, such as:
+> Do not add a code comment by default. First make the code explain itself through names, types, cohesive abstractions, encapsulation, and simple control flow. A comment is allowed only when it records essential information that the code cannot express.
 
-- a non-obvious constraint, invariant, or external-system quirk
-- an intentionally unusual implementation chosen for a documented trade-off
-- a surprising edge case, workaround, or performance/security concern
-- a decision that would otherwise invite a future contributor to "simplify" the code incorrectly
+Allowed exceptions are narrow:
 
-When a comment is justified, write the reason and the constraint, not a line-by-line description of the mechanism. If the code is unclear and no such context exists, refactor it until it is clear instead of explaining unclear code with a comment.
+- **Public API documentation** when an externally consumed contract needs to describe semantics the signature cannot express, such as lifecycle, units, errors, threading, ordering, compatibility, or security requirements. Public visibility alone does not require a comment, and documentation must not merely restate the symbol name or signature.
+- **Unavoidable non-obvious code** forced by an external quirk, platform defect, performance constraint, protocol requirement, migration, compatibility concern, or deliberate hack. The comment must explain why the surprising code exists, the constraint that prevents the obvious implementation, and—where useful—the evidence or condition under which it can be removed.
+
+Everything else should be expressed in code or removed. In particular, Claude must not add:
+
+- comments that describe what the next line, branch, loop, or function already says
+- headings or divider comments used to organize a function that should instead be decomposed
+- comments that repeat type information, parameter names, return values, or test assertions
+- `Arrange`, `Act`, and `Assert` labels around already readable tests
+- comments commemorating a change, fix, refactor, or previous implementation; version control owns that history
+- commented-out code, speculative TODOs, conversational notes, or explanations addressed to the reviewer
+- comments used to excuse confusing names, oversized functions, leaky abstractions, tangled control flow, or missing types
+
+When code appears to need an explanatory comment, Claude should first try, in order:
+
+1. improve the names and types;
+2. simplify the control flow;
+3. extract a cohesive operation or value;
+4. move the behavior behind the abstraction that owns it;
+5. remove unnecessary cleverness.
+
+Only if the essential information still cannot live in the code should a comment remain. Write the shortest durable explanation of **why**, not a description of **what** or **how**. During refactoring, review existing comments too: remove those made redundant by clearer code, and update the exceptional comments whose underlying constraints changed.
 
 #### Frontend File Boundaries
 

@@ -56,6 +56,9 @@ This is the model to use:
   4. present the ideal solution first, even when it is larger or harder; label any lower-effort alternative and its debt explicitly
   5. explain the plan before broad or risky edits
 - Never introduce a new dependency, pattern, abstraction, file layout, or naming scheme without explicit approval.
+- Construct objects and select concrete external adapters only at explicit application boundaries. Functionality code receives required collaborators through constructors or function arguments; it must not discover them through globals, service locators, or hidden I/O.
+- Preserve encapsulation: give each object or module ownership of its state, invariants, and behavior; expose narrow intent-based APIs, and do not substitute helpers, forwarding interfaces, or mutable data access for a real abstraction.
+- Do not add code comments unless documenting a non-obvious public API contract or an unavoidable external constraint, quirk, or hack. First make the code self-explanatory; permitted comments explain why, never narrate what.
 - Before writing code, identify the applicable convention skill(s). If no convention exists, stop and ask.
 - Prefer code inspection and existing tests before using MCPs, browser tools, or external automation.
 - If a human-approved convention changes, update the Claude config files in the same change.
@@ -218,13 +221,16 @@ user-invocable: true
 
 1. Load the applicable convention skills before writing code.
 2. Audit the touched code paths and identify the current canonical patterns.
-3. Ask: "If I were starting from scratch, knowing what I know now, what is the best approach?"
-4. Assume the area is not ready for the new feature until proven otherwise. Refactor, extract, and encapsulate until it is a clean host for the change.
-5. Present the ideal solution first. If a smaller or faster alternative exists, label it as a compromise and state the debt, constraint, or risk it accepts.
-6. If the ideal solution introduces a new dependency, pattern, abstraction, or file structure, stop and ask for approval.
-7. Implement only after the structure is coherent.
-8. Run targeted verification.
-9. If the task established a new approved convention, update the config files in the same change.
+3. Inspect touched functionality for hidden construction, service location, global state, configuration reads, or I/O. Plan to move those concerns to an explicit boundary and pass required capabilities inward.
+4. Identify which object or module should own the affected state, invariants, and decisions. Check that callers can use a narrow intent-based API without coordinating the owner's internals.
+5. Ask: "If I were starting from scratch, knowing what I know now, what is the best approach?"
+6. Assume the area is not ready for the new feature until proven otherwise. Refactor, extract, and encapsulate until it is a clean host for the change.
+7. Present the ideal solution first. If a smaller or faster alternative exists, label it as a compromise and state the debt, constraint, or risk it accepts.
+8. If the ideal solution introduces a new dependency, pattern, abstraction, or file structure, stop and ask for approval.
+9. Implement only after the structure is coherent.
+10. Review every added or retained code comment. Remove narration and comments made redundant by the refactor; keep only documented public contracts and unavoidable why-level constraints.
+11. Run targeted verification, including a direct unit test constructed with explicit fakes where applicable.
+12. If the task established a new approved convention, update the config files in the same change.
 ```
 
 The point is not elegance. The point is to make Claude's default operating behavior hostile to drift.

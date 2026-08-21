@@ -29,11 +29,14 @@ If one of those is missing, the system degrades. Freedom without conventions bec
 If the setup does not actively counter these, Claude will keep doing them:
 
 - It copy-pastes locally convenient logic instead of finding or extracting the shared abstraction.
+- It moves code into helpers or interfaces without creating a meaningful abstraction, and exposes state for callers to coordinate instead of preserving encapsulation inside the owning object or module.
 - It makes the smallest possible code change even when the surrounding structure is unready for the new requirement.
 - It invents slight pattern variants because the first few files it read looked "close enough."
 - It does not reliably look around for existing patterns before starting work, so it reinvents the wheel unless explicitly told to search upstream, downstream, and laterally.
 - It sometimes over-engineers in the opposite direction by introducing speculative abstractions that the current codebase does not actually need.
 - It avoids refactoring and test-first discipline unless forced to do them.
+- It hides dependencies by constructing clients, repositories, clocks, configuration, or other external capabilities inside behavior code, making units difficult to instantiate and test in isolation.
+- It litters otherwise clear code with narration, headings, and explanatory comments instead of trusting good names, types, abstractions, and control flow.
 - It is bad at keeping code formatting consistent unless formatting is handled mechanically.
 - It silently introduces new abstractions, dependencies, or file shapes unless explicitly told to stop and ask.
 - It follows whatever context is most visible, which means bloated root memory and poorly routed guidance actively make it worse.
@@ -116,7 +119,7 @@ Institutional memory matters, but the root memory file is not the place to store
 This overview keeps the operating model and current-product summary in one place. The detailed guidance now lives in focused chapters so it can be read, maintained, and reused independently.
 
 - [Context and Routing](guide/context-and-routing.md) — `CLAUDE.md`, rules, skills, memory, and discoverability.
-- [Engineering Conventions](guide/engineering-conventions.md) — type safety, abstractions, duplication, UI architecture, logging, APIs, exceptions, and formatting.
+- [Engineering Conventions](guide/engineering-conventions.md) — type safety, explicit construction and dependency boundaries, abstractions, duplication, UI architecture, logging, APIs, exceptions, and formatting.
 - [Design-System Refactors](guide/design-system-refactors.md) — evidence-derived guidance for inventorying, modelling, sequencing, and verifying cross-surface UI-system migrations.
 - [Database Correctness and Scale](guide/database.md) — normalization, transactions, constraints, indexes, and safe denormalization decisions.
 - [Testing and Quality](guide/testing-and-quality.md) — TDD, convention design, stop-and-ask rules, and drift audits.
@@ -174,6 +177,8 @@ Use the official docs and release notes to verify what Claude Code supports. Use
 - [ast-grep](https://github.com/ast-grep/ast-grep) — a structural search, linting, and codemod tool that matches syntax trees rather than relying on fragile text patterns.
 - [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) — a dependency-analysis tool for JavaScript and TypeScript that can visualize module relationships and enforce architectural boundaries in CI.
 - [Knip](https://github.com/webpro-nl/knip) — a JavaScript and TypeScript project-analysis tool for finding unused files, exports, dependencies, and configuration entries.
+- [Growing Object-Oriented Software, Guided by Tests](https://growing-object-oriented-software.com/) — Steve Freeman and Nat Pryce's practical account of using tests and object collaboration to grow coherent, maintainable software; particularly valuable for understanding how testability exposes and improves design.
+- [Composition Root](https://blog.ploeh.dk/2011/07/28/CompositionRoot/) — Mark Seemann's concise description of keeping object-graph construction in one visible place near an application's entry point, leaving application code to receive dependencies through constructors.
 - [Anthropic Agent Skills](https://github.com/anthropics/skills) — Anthropic's official reference implementations for portable, automatically discovered skills; its `frontend-design` skill is a particularly strong example of grounding visual direction in the subject, audience, content, and deliberate critique rather than generic AI defaults.
 - [Impeccable](https://github.com/pbakaus/impeccable) — a design language and skill set for planning, building, critiquing, auditing, and polishing production interfaces, with deterministic checks for common AI-generated UI defects.
 - [Taste Skill](https://github.com/Leonxlnx/taste-skill) — an opinionated, framework-neutral collection for art direction, redesign audits, image-to-code work, and avoiding repetitive AI aesthetics; useful for marketing sites and portfolios, but its default v2 skill is experimental and its strong stylistic rules should be selected to fit the brief rather than adopted wholesale.
