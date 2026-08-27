@@ -8,8 +8,8 @@ Explicit success criteria are a force multiplier. Claude generally performs bett
 
 For any non-trivial task, Claude should follow this sequence:
 
-1. **Audit**: inspect the existing code paths, abstractions, tests, and conventions.
-2. **Refactor for readiness**: fix weak abstractions, duplication, naming drift, helper creep, or structural issues first.
+1. **Audit**: inspect the existing code paths, abstractions, tests, conventions, and external-system boundaries.
+2. **Refactor for readiness**: fix weak abstractions, duplication, naming drift, helper creep, leaking provider contracts, or structural issues first.
 3. **Implement**: add the feature on top of the prepared structure.
 4. **Verify**: run the targeted checks, inspect output, and confirm the task against the stated success criteria.
 5. **Update config**: if the work established an approved new convention or clarified an existing one, update the Claude config in the same change.
@@ -36,6 +36,7 @@ The audit step needs to be more explicit than "read the file you plan to edit." 
 - look downstream at implementations, side effects, persistence, transport, and consumers
 - look laterally for similarly named files, classes, functions, hooks, services, handlers, and tests
 - search for existing patterns, field names, error shapes, and helper usage across the repo before inventing a new variant
+- for every external API, SDK, or service touched, trace where its client and types enter the application, whether an application-owned adapter already exists, and how many callers would change if the provider were replaced
 
 If this is not spelled out, Claude will often optimize for the local patch instead of the repository pattern. That is the mechanism behind most wheel-reinvention and a large share of long-term drift.
 
@@ -49,6 +50,7 @@ The right counterweight is YAGNI: prepare the code for the current requirement w
 - do not build abstractions for hypothetical future use cases
 - do not introduce a framework when a local extraction will do
 - do not create a general-purpose layer until there is real duplication or a second concrete use case
+- do isolate an external system on first use; its independently changing contract, failure modes, and need for test substitution are already concrete reasons for a boundary
 
 The distinction matters because Claude drifts in both directions. Sometimes it patches too little. Sometimes it generalizes too much. A good setup tells it to prepare the ground for the current task, not to redesign the entire area around imagined future requirements.
 

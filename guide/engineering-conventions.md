@@ -21,6 +21,7 @@ Your convention system must cover every area where Claude can invent a new local
 - state management,
 - data fetching patterns,
 - API client and server shapes,
+- external API, SDK, and service adapter boundaries,
 - validation,
 - logging,
 - formatting expectations,
@@ -76,7 +77,7 @@ Required rules:
 - Let the consumer's need shape a collaborator abstraction. Do not mechanically create an interface mirroring every concrete class.
 - Test through public behavior and observable collaborations. Do not weaken encapsulation or expose internals merely to make tests reach them.
 - When a change requires several callers to repeat the same knowledge, look for the concept that should own that knowledge and move the behavior there.
-- When no stable concept or second implementation pressure exists, keep a concrete implementation. Do not add interfaces, layers, or wrappers as ceremony.
+- When no stable concept or second implementation pressure exists, keep an internal concrete implementation. Do not add interfaces, layers, or wrappers as ceremony. External systems are different: replacement, failure, test substitution, and a contract outside the application's control create boundary pressure from the first integration.
 
 A good review question is: **what knowledge does this unit hide, and what invariant or decision does it own?** If the answer is "none; it just forwards calls" or "callers assemble the behavior themselves," the boundary is probably not earning its existence.
 
@@ -99,6 +100,36 @@ The convention should push Claude toward the harder-looking but usually better m
 In practice, code is almost never "already ready" for the next requirement. It has to be grown into readiness through repeated inspection and refactoring. Claude should be trained to look, consider, design, and refactor before it writes the next line of implementation code. Throwing a helper at the problem is often just a way to avoid that work.
 
 The acceptance test is not the number of classes or the absence of duplication. After the refactor, callers should know less, the owning unit should control more of its own validity and behavior, and a future implementation change should affect fewer places. If those properties did not improve, Claude probably moved code rather than improving the abstraction.
+
+#### Treat Every External System as Replaceable
+
+Injection alone is not enough. Claude may accept a vendor client as a constructor parameter and still spread that vendor's methods, request objects, response objects, errors, pagination model, and terminology throughout the application. The dependency is now visible and testable, but the application remains coupled to an API it does not own.
+
+The stronger default is:
+
+> Every external API, SDK, or service sits behind a narrow, application-owned boundary. Only its adapter knows the provider contract. The rest of the application speaks in its own capabilities, values, and errors.
+
+This applies to remote APIs and separately deployed internal services as well as payment, authentication, analytics, feature-flag, messaging, notification, storage, search, database, operating-system, and framework services when application behavior depends on them. The boundary need not be a class or a large interface; depending on the language it may be a small protocol, trait, function, module, or closure. What matters is ownership and dependency direction, not ceremony.
+
+Design the boundary from what the application needs, not by copying the provider's entire surface:
+
+- expose intent-based operations and omit provider features the application does not use
+- accept and return application-owned values rather than leaking vendor request, response, identifier, or error types
+- keep authentication, retries, pagination, serialization, rate-limit handling, and provider quirks inside the adapter when those concerns should be uniform for callers
+- translate provider failures once into the application's error model, preserving useful diagnostic context without making callers understand the provider
+- keep provider imports and concrete client construction inside the adapter and composition layer
+- give tests a small fake implementation of the application-owned contract; do not make ordinary application tests mock a vendor SDK
+- test the adapter itself at the boundary with focused integration or contract tests, because a fake proves application behavior but not that the provider mapping is correct
+
+Do not build a one-for-one forwarding wrapper that reproduces every vendor method and type. That merely adds a file while preserving the coupling. A boundary earns its place by reducing what callers need to know, constraining how the service is used, centralizing policy, and containing change.
+
+Use the replacement test during design and review:
+
+> If this provider disappeared tomorrow, would the change be concentrated in one adapter, its composition wiring and configuration, plus genuinely provider-specific product behavior?
+
+If ordinary use cases, domain objects, view models, handlers, or tests would all need coordinated edits, the external contract has leaked past its boundary. Claude should fix that leakage in the touched path before adding more calls. This is not speculative abstraction: an external contract is already a concrete source of variability, and isolating it immediately is cheaper than extracting it after its types and usage patterns have spread.
+
+Claude is unlikely to apply this consistently from general advice about "good architecture." Encode the concise governing rule in root `CLAUDE.md` when it applies across the repository, keep the design detail in the automatically discoverable engineering convention, and make the feature workflow inspect every touched integration for leakage. Where the language and module structure permit it, add import-boundary checks that allow a vendor package only in its adapter and composition code. Review and tests then check the application-owned contract and the replacement test above rather than merely asking whether the client was injected.
 
 #### Construct at the Edges; Pass Capabilities Inward
 
@@ -138,6 +169,7 @@ Required rules:
 - Make every required, long-lived collaborator a constructor parameter. A successfully constructed object should be ready to use and should not need later property injection or hidden initialization.
 - Keep the composition root near the process, application, scene, command, request-handler, or framework entry point. Manual wiring is often sufficient. If the project uses a dependency-injection container, resolve from it only in this construction layer; never pass the container into functionality code.
 - Treat network clients, databases, filesystems, clocks, random and identifier generators, schedulers, notification systems, analytics, process state, and configuration sources as external capabilities. Pass them in when behavior depends on them.
+- Inject application-owned capability contracts into functionality code, not raw vendor clients. Keep each external API, SDK, or service behind the adapter that translates between the provider contract and application concepts.
 - Read environment variables, user defaults, files, secrets, and remote configuration at an explicit boundary. Convert raw configuration into typed values before passing it inward.
 - Keep framework-owned types and callbacks at adapters where practical. Translate them into application-level values and calls rather than making the whole object graph depend on the framework.
 - Use a narrow factory or builder when objects genuinely must be created later from runtime data. Inject that factory into the caller, and give the factory its own dependencies when it is assembled.
@@ -150,6 +182,7 @@ Required rules:
 Forbidden alternatives in functionality code:
 
 - constructing a concrete network, database, filesystem, analytics, clock, or similar client at the point of use
+- importing vendor SDKs or allowing provider request, response, identifier, or error types to escape into functionality code
 - reading global configuration, environment, disk, keychains, user defaults, or network state without an injected boundary
 - reaching through singletons, global registries, application delegates, static mutable state, or service locators to obtain collaborators
 - storing application, session, request, cache, test, or feature state in global variables, module-level mutable values, static properties, or shared instances

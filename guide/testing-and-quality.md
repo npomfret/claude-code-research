@@ -97,6 +97,7 @@ Run focused audits by concern:
 
 - error handling,
 - API call structure,
+- external API, SDK, and service leakage,
 - async orchestration,
 - test layout,
 - frontend state,
@@ -112,6 +113,8 @@ For each concern:
 4. refactor major divergences,
 5. write the convention down,
 6. then make future work follow it.
+
+For an external integration audit, check more than whether calls are injectable. Provider SDK imports and provider-owned request, response, identifier, and error types should stop at an application-owned adapter. Application tests should substitute the narrow capability without understanding the vendor; focused adapter tests should verify translation, error mapping, and any provider-specific protocol behavior. As a practical acceptance test, estimate the files that would change if the provider were replaced. Broad changes outside the adapter, composition wiring, configuration, and genuinely provider-specific product behavior reveal a leaky boundary.
 
 This is the only reliable way to stop a large existing project from getting worse.
 

@@ -36,6 +36,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It sometimes over-engineers in the opposite direction by introducing speculative abstractions that the current codebase does not actually need.
 - It avoids refactoring and test-first discipline unless forced to do them.
 - It hides dependencies by constructing clients, repositories, clocks, configuration, or other external capabilities inside behavior code, making units difficult to instantiate and test in isolation.
+- Even when it injects an external client, it lets vendor SDK methods, types, errors, and usage patterns spread through application code instead of containing them behind a narrow application-owned adapter.
 - It reaches for mutable static or global state, singletons, and shared instances, creating hidden coupling between callers and tests whose outcomes depend on execution order.
 - It litters otherwise clear code with narration, headings, and explanatory comments instead of trusting good names, types, abstractions, and control flow.
 - It is bad at keeping code formatting consistent unless formatting is handled mechanically.
@@ -122,7 +123,7 @@ The clearest consensus is narrower than most starter templates suggest. Root `CL
 This overview keeps the operating model and current-product summary in one place. The detailed guidance now lives in focused chapters so it can be read, maintained, and reused independently.
 
 - [Context and Routing](guide/context-and-routing.md) — `CLAUDE.md`, rules, skills, memory, and discoverability.
-- [Engineering Conventions](guide/engineering-conventions.md) — type safety, explicit construction and dependency boundaries, abstractions, duplication, UI architecture, logging, APIs, exceptions, and formatting.
+- [Engineering Conventions](guide/engineering-conventions.md) — type safety, abstractions, encapsulation, replaceable external-service adapters, explicit construction and dependency boundaries, duplication, UI architecture, logging, APIs, exceptions, and formatting.
 - [Design-System Refactors](guide/design-system-refactors.md) — evidence-derived guidance for inventorying, modelling, sequencing, and verifying cross-surface UI-system migrations.
 - [Database Correctness and Scale](guide/database.md) — normalization, transactions, constraints, indexes, and safe denormalization decisions.
 - [Testing and Quality](guide/testing-and-quality.md) — TDD, convention design, stop-and-ask rules, and drift audits.

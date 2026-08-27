@@ -62,6 +62,7 @@ This is the model to use:
   4. present the ideal solution first, even when it is larger or harder; label any lower-effort alternative and its debt explicitly
   5. explain the plan before broad or risky edits
 - Never introduce a new dependency, pattern, abstraction, file layout, or naming scheme without explicit approval.
+- Treat every external API, SDK, or service as replaceable. Put it behind a narrow application-owned adapter; keep vendor clients and types inside that adapter and the composition layer so functionality code and tests depend only on application-owned capabilities.
 - Construct objects and select concrete external adapters only at explicit application boundaries. Functionality code receives required collaborators through constructors or function arguments; it must not discover them through globals, service locators, or hidden I/O.
 - Mutable static or global state is banned, including singletons, shared instances, global registries, module-level mutable values, and global caches. Give state an explicitly constructed owner and lifetime, then pass it to consumers. Immutable constants and stateless pure functions are not state.
 - Preserve encapsulation: give each object or module ownership of its state, invariants, and behavior; expose narrow intent-based APIs, and do not substitute helpers, forwarding interfaces, or mutable data access for a real abstraction.
