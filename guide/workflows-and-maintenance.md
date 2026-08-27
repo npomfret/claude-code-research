@@ -99,7 +99,7 @@ This is an underused but high-leverage idea. Claude should not just consume `CLA
 
 Anthropic's skills and memory systems provide the mechanisms for durable repository guidance. The missing operational guidance is this: configuration updates should be part of normal development, not deferred cleanup.
 
-Treat this as controlled self-improvement. When Claude encounters a recurring failure mode, a missing convention, stale routing, or an unclear workflow, it should not just work around the problem for the current task. It should propose or make the smallest approved config improvement that helps it do a better job next time.
+Treat this as controlled self-improvement. When Claude encounters a recurring failure mode, a missing convention, broken native discovery, or an unclear workflow, it should not just work around the problem for the current task. It should propose or make the smallest approved config improvement that helps it do a better job next time.
 
 ### What Claude can update autonomously
 
@@ -112,7 +112,7 @@ Claude can safely update:
 - wording improvements that do not change policy,
 - notes that record a human-approved decision,
 - skill and agent metadata that improves discoverability without changing policy,
-- and the skill/reference links that keep the routing layer accurate.
+- and references owned by skills or rules that keep their on-demand guidance accurate.
 
 ### What requires human approval
 
@@ -127,7 +127,7 @@ Claude must ask before:
 - introducing a new dependency,
 - or changing architecture boundaries.
 
-The rule is simple: Claude may maintain the map, but the human owns the territory.
+The rule is simple: Claude may maintain established configuration, but the human owns its policy.
 
 ### Add a config-maintenance skill
 
@@ -143,12 +143,12 @@ user-invocable: true
 
 # Config Maintenance
 
-1. Identify which instruction file is affected: root memory, skill, or reference doc.
+1. Identify which instruction surface owns the guidance: root `CLAUDE.md`, rule, skill, agent definition, or supporting reference.
 2. If the issue is workflow routing, also check whether an agent definition or skill description should be updated.
 3. Confirm whether the change is documentation-only or a policy change.
 4. If it is a policy change, stop and ask for approval.
 5. Update the smallest correct file.
-6. Keep routing files short; move detail into reference docs.
+6. Keep always-loaded instructions short; keep scoped detail with the rule or skill that owns it.
 7. Ensure the updated instructions match the codebase as it exists now.
 ```
 
@@ -156,7 +156,7 @@ This keeps the configuration system alive without turning every task into a docu
 
 ### Version-control the config with the code
 
-Do not treat Claude config as personal local clutter if the project is team-owned. Project-level skills, agent definitions, conventions, and root memory belong in version control so the codebase and the agent instructions evolve together.
+Do not treat Claude config as personal local clutter if the project is team-owned. Project-level skills, agent definitions, conventions, and root `CLAUDE.md` instructions belong in version control so the codebase and the agent instructions evolve together.
 
 The practical benefit is enormous:
 

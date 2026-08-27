@@ -56,11 +56,7 @@ This format is strict for a reason. Claude needs to know:
 
 ### The "stop and ask" rule
 
-This rule must be encoded in more than one place:
-
-- in the root `CLAUDE.md`,
-- in the feature-workflow skill,
-- and in convention files themselves.
+Give this rule one authoritative home at the broadest scope where it is genuinely required. If it applies to every task in the repository, it earns a place in root `CLAUDE.md`. If it applies only to a task type or subsystem, put it in the corresponding skill or path-scoped rule. Do not duplicate it across root instructions, skills, and convention files merely for emphasis; duplicated policy drifts and obscures which version is authoritative.
 
 The language should be explicit:
 
@@ -68,9 +64,9 @@ The language should be explicit:
 
 That is stronger than "prefer existing patterns." It forces Claude to notice conceptual expansion before it happens.
 
-### Claude must check conventions before writing, not after
+### Claude must load conventions before writing, not after
 
-A convention system only works if Claude is instructed to locate the applicable convention set before editing. The official docs are good on skills and concise memory but do not make this workflow rigid enough for long projects. Your setup should.
+A convention system only works if the applicable guidance loads before Claude edits. Make that happen through precise skill descriptions, path-scoped rules, local scope, and references owned by the mechanism that uses them. Requiring root `CLAUDE.md` to enumerate or locate conventions conceals routing defects in the configuration.
 
 The correct sequence is:
 

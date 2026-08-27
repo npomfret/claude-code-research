@@ -73,7 +73,7 @@ For long-running interactive projects, the right use of hooks is:
 
 That is where hooks shine.
 
-Natural-language-detecting hooks are usually a bad idea. If a hook has to infer user intent from vague task wording, classify whether a request "sounds like" a bug fix, or guess which workflow should apply from free text, it will be brittle. Use skills, agent descriptions, and root routing rules for semantic routing. Claude is already the language model in the loop, so it is usually better to rely on its own routing intelligence than to bolt on a second, cruder natural-language classifier in hooks. If semantic routing works almost all of the time and failures are corrected by better descriptions, narrower scope, and clearer routing hints, that is good enough. Use hooks for deterministic events and deterministic side effects.
+Natural-language-detecting hooks are usually a bad idea. If a hook has to infer user intent from vague task wording, classify whether a request "sounds like" a bug fix, or guess which workflow should apply from free text, it will be brittle. Use precise skill and agent descriptions, path-scoped rules, and local placement for semantic routing. Claude is already the language model in the loop, so it is usually better to rely on its own routing intelligence than to bolt on a second, cruder natural-language classifier in hooks. If semantic routing works almost all of the time and failures are corrected by better metadata, narrower scope, and clearer ownership, that is good enough. Use hooks for deterministic events and deterministic side effects.
 
 ### Hooks are not the right place to block normal development actions
 
@@ -118,4 +118,3 @@ The practical recommendation is:
 Auto mode is now a useful middle ground for a personal or managed environment: the classifier can allow routine work while escalating risky actions. A repository cannot opt a user into it: `auto` and its prose-based `autoMode` policy are ignored in project and local settings. If you enable it, keep hard prohibitions in regular deny rules or sandbox policy and treat the classifier as a convenience layer, not an authorization model.
 
 `bypassPermissions` remains deliberately dangerous. It is appropriate only for an isolated, disposable environment where the user has consciously accepted unrestricted execution; organizations can disable it with `disableBypassPermissionsMode`. The example in `examples/settings.json` is therefore an opt-in personal configuration, not a recommended checked-in default.
-

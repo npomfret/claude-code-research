@@ -19,5 +19,5 @@ The goal is to turn Claude Code from a capable programmer into a world class pro
 
 I need a brutally efficient and professional, Claude Code environment for this project.
 
-Create (or update) our `.claude`, including `CLAUDE.md`, to support that goal. Focus on reusable, project-appropriate guidance; do not add product-specific rules or skills unless they are clearly justified. If you identify useful product-specific additions, propose them to the user at the end rather than adding them automatically. You are free to update or remove existing sections that you feel are inappropriate for any reason.
+Create or update the project's Claude Code configuration, including a root `CLAUDE.md` only where the repository has crucial, broadly applicable facts or instructions that Claude cannot reliably infer. Do not use `CLAUDE.md` to index or link the contents of `.claude/`; make skills, rules, agents, and their supporting references discoverable through their own metadata, scope, placement, and ownership. Put scoped, procedural, or nuanced guidance in the mechanism that can express when it applies. Add project-specific guidance only when repository evidence shows that omitting it would predictably make Claude less reliable. You are free to update or remove existing sections that do not meet that standard.
 ```

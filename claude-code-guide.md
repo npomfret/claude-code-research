@@ -40,7 +40,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It litters otherwise clear code with narration, headings, and explanatory comments instead of trusting good names, types, abstractions, and control flow.
 - It is bad at keeping code formatting consistent unless formatting is handled mechanically.
 - It silently introduces new abstractions, dependencies, or file shapes unless explicitly told to stop and ask.
-- It follows whatever context is most visible, which means bloated root memory and poorly routed guidance actively make it worse.
+- It follows whatever context is most visible, which means bloated root instructions and poorly scoped guidance actively make it worse.
 - It reaches for tools, MCPs, or browser automation before exhausting code-level investigation if those tools are available.
 - It misses reusable workflow instructions when they are not designed to be automatically discoverable from the user's wording.
 - It answers broad review questions from representative samples, then sounds more comprehensive than the evidence supports.
@@ -113,7 +113,9 @@ Just as important, Claude should be encouraged to offer the cleaner, larger chan
 
 Anthropic's [Memory](https://code.claude.com/docs/en/memory) guidance and [Best Practices](https://code.claude.com/docs/en/best-practices) guidance are correct that project memory should be concise and specific. The most damaging bad advice in the ecosystem is the repeated suggestion to "just add it to `CLAUDE.md`." That advice works on tiny projects because the entire repo is tiny. On a real project, `CLAUDE.md` is always-on context. Every unnecessary paragraph steals budget from the actual task.
 
-Institutional memory matters, but the root memory file is not the place to store all of it. Long-lived projects need discoverable, on-demand context instead.
+Institutional memory matters, but root `CLAUDE.md` is not the place to store all of it. Long-lived projects need discoverable, on-demand context instead.
+
+The clearest consensus is narrower than most starter templates suggest. Root `CLAUDE.md` is for exact non-obvious commands, repository-wide verification expectations, project-specific architectural decisions and conventions, repository etiquette or approval boundaries, and dangerous or generated areas. Even those are candidates rather than mandatory sections: include an item only when omitting it would predictably make Claude less reliable. Do not use the file to index `.claude/`; scoped configuration must be discoverable through its own metadata, path scope, placement, and reference ownership.
 
 ## Guide Map
 
@@ -133,14 +135,14 @@ This overview keeps the operating model and current-product summary in one place
 
 If you want a practical default setup, use this:
 
-1. A short root `CLAUDE.md` that encodes non-negotiables and routes to deeper guidance.
+1. A short root `CLAUDE.md` containing only crucial repository-wide facts and instructions; scoped Claude configuration must be independently discoverable rather than indexed from this file.
 2. A small rules set for always-on global and path-scoped standing instructions.
 3. A small skill set:
    - `conventions-global`
    - `feature-workflow`
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`
-4. Reference documents for detailed conventions, kept outside root memory.
+4. Reference documents for detailed conventions, kept outside root `CLAUDE.md` instructions and owned by the rule or skill that uses them.
 5. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
 6. `settings.json` for allow/deny behavior and permission posture.
 7. Compiler, language-server, test, and repository-search commands as the first code-investigation layer.
@@ -174,6 +176,8 @@ Use the official docs and release notes to verify what Claude Code supports. Use
 
 ### Further Reading
 
+- [On the Use of Agentic Coding Manifests](https://arxiv.org/abs/2509.14744) — an empirical study of 253 public `Claude.md` files, useful for distinguishing common content patterns from isolated template advice.
+- [Agent READMEs](https://arxiv.org/abs/2511.12884) — a broader empirical study of repository-level agent context files and the instructions developers prioritize in practice.
 - [GitNexus](https://github.com/nxpatterns/gitnexus) — a repository-intelligence and code-graph tool for exploring dependencies, execution flows, symbols, and the likely blast radius of a change.
 - [ast-grep](https://github.com/ast-grep/ast-grep) — a structural search, linting, and codemod tool that matches syntax trees rather than relying on fragile text patterns.
 - [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) — a dependency-analysis tool for JavaScript and TypeScript that can visualize module relationships and enforce architectural boundaries in CI.
