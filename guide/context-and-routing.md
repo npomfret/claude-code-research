@@ -160,6 +160,8 @@ Use a structure like this:
   skills/
     feature-workflow/
       SKILL.md
+    bug-investigation/
+      SKILL.md
     conventions-global/
       SKILL.md
     api-conventions/
