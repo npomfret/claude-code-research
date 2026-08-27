@@ -37,6 +37,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It avoids refactoring and test-first discipline unless forced to do them.
 - During difficult bug investigations, it leaves unsuccessful instrumentation and speculative fixes in place, then stacks later conjectures on top until neither the evidence nor the final diff has a trustworthy baseline.
 - It treats every failing bug reproducer as automatically entitled to a permanent place in the suite, even when it merely records implementation history, duplicates stronger coverage, or costs more than the enduring risk justifies.
+- It buries the behaviour of integration and end-to-end tests under procedural setup, navigation, synchronization, and cleanup code instead of extracting those mechanics behind readable application drivers or equivalent test harnesses.
 - It hides dependencies by constructing clients, repositories, clocks, configuration, or other external capabilities inside behavior code, making units difficult to instantiate and test in isolation.
 - Even when it injects an external client, it lets vendor SDK methods, types, errors, and usage patterns spread through application code instead of containing them behind a narrow application-owned adapter.
 - It reaches for mutable static or global state, singletons, and shared instances, creating hidden coupling between callers and tests whose outcomes depend on execution order.
@@ -128,7 +129,7 @@ This overview keeps the operating model and current-product summary in one place
 - [Engineering Conventions](guide/engineering-conventions.md) — type safety, abstractions, encapsulation, replaceable external-service adapters, explicit construction and dependency boundaries, duplication, UI architecture, logging, APIs, exceptions, and formatting.
 - [Design-System Refactors](guide/design-system-refactors.md) — evidence-derived guidance for inventorying, modelling, sequencing, and verifying cross-surface UI-system migrations.
 - [Database Correctness and Scale](guide/database.md) — normalization, transactions, constraints, indexes, and safe denormalization decisions.
-- [Testing and Quality](guide/testing-and-quality.md) — controlled bug investigation, deliberate regression-test retention, TDD, convention design, stop-and-ask rules, and drift audits.
+- [Testing and Quality](guide/testing-and-quality.md) — readable driver-backed tests, controlled bug investigation, deliberate regression-test retention, TDD, convention design, stop-and-ask rules, and drift audits.
 - [Code Intelligence](guide/code-intelligence.md) — repository search, GitNexus, ast-grep, dependency-cruiser, and Knip.
 - [Workflows and Configuration Maintenance](guide/workflows-and-maintenance.md) — audit → refactor → implement → verify, progressive validation, and keeping Claude configuration current.
 - [Integrations, Hooks, and Permissions](guide/integrations-and-permissions.md) — MCP strategy, hooks, settings, sandboxing, and permission posture.
@@ -143,6 +144,7 @@ If you want a practical default setup, use this:
 3. A small skill set:
    - `conventions-global`
    - `feature-workflow`
+   - `testing-conventions`
    - `bug-investigation`
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`

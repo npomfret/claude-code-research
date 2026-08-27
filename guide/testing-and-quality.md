@@ -1,5 +1,7 @@
 # Testing and Quality
 
+## Use Test-First Discipline Deliberately
+
 The guide already argues for aggressive verification. In practice, many teams should go one step further and encode test-first behavior for at least non-trivial feature work and reproducible bug fixes.
 
 Test-first work is useful here because it attacks two Claude failure modes at once:
@@ -16,6 +18,45 @@ If your team uses TDD, write it down as a convention, not a vibe. Be explicit ab
 - completion: do not claim success without showing the relevant tests passing
 
 Do not claim to use TDD if the repo does not actually work that way. False TDD language is worse than no TDD language because Claude will satisfy the words and miss the real workflow. But when the team does want test-first discipline, Claude should be told exactly what that means.
+
+## Tests Must Make Behaviour Easy to Read
+
+A test is useful only when a reader can quickly identify the meaningful starting state, the action, and the expected result. Where an intermediate state matters, make that verification equally visible. The setup, exercise, and verification phases should be apparent from the semantic operations and spacing in the test; they should not need `Arrange`, `Act`, and `Assert` narration to become understandable.
+
+This matters most in integration, system, and end-to-end tests. Such tests may need substantial machinery to launch the application, seed data, authenticate, navigate, locate controls, construct requests, wait for asynchronous work, observe state, capture diagnostics, and clean up. Those mechanics are necessary, but they are not the behaviour the test is trying to communicate. Hundreds of lines of procedural setup in a test class are evidence of missing test infrastructure, not an unavoidable property of comprehensive testing.
+
+Use **application drivers** as the generic name for abstractions that control and observe the system under test. Depending on the layer and local vocabulary, a project may call them test harnesses, test DSLs, Page Objects, component objects, robots, fixture builders, API test clients, or Screenplay actors and tasks. The name is less important than the ownership boundary:
+
+> The test owns the scenario, behaviourally meaningful inputs, actions, and expectations. Drivers own the mechanics required to control and observe the application.
+
+Required rules:
+
+- Integration and end-to-end test bodies must read in application or domain language rather than transport, framework, selector, or infrastructure language.
+- Extract non-trivial application control, environment setup, navigation, request construction, synchronization, observation, and cleanup mechanics from the test class into focused drivers or equivalent harness abstractions.
+- Keep values and state transitions that explain the scenario visible in the test. Do not hide the reason for the test inside a generic fixture, global setup hook, or opaque helper.
+- Make important precondition checks and final expectations explicit in the scenario, either as ordinary assertions over values returned by a driver or as clearly named semantic verification operations.
+- Give drivers intent-based operations. Do not create a thin layer that merely renames selectors, button presses, HTTP endpoints, framework calls, or vendor SDK methods one for one.
+- Prefer several cohesive capability or surface drivers over one god-driver that knows the entire product.
+- Centralize deterministic synchronization and useful failure diagnostics in the driver. Do not spread arbitrary sleeps, polling loops, screenshot plumbing, or retry behaviour through test bodies.
+- Do not calculate expected results with the same production logic being tested. A driver may observe and translate application state, but the test's expectation must remain independently meaningful.
+- Give each test an isolated, explicit starting state. Driver reuse must not introduce shared mutable state, order dependence, or hidden cleanup requirements.
+- When adding a test exposes substantial procedural code in the test class, perform a readiness refactor: extract or improve the driver first, then write the short behavioural scenario against it.
+
+For example, prefer a test shaped like this:
+
+```ts
+const account = await accounts.create({ plan: "trial" });
+await app.signIn(account);
+await dashboard.expectReady();
+
+await subscriptions.cancelCurrent();
+
+await subscriptions.expectCancelled();
+```
+
+The driver layer owns how accounts are created, how sign-in and navigation work, which controls or endpoints implement cancellation, how readiness is detected, and which diagnostics accompany a failure. The test retains the facts that matter to the scenario: the account plan, the action, the meaningful intermediate state, and the expected outcome.
+
+Do not extract every literal or create ceremony around a small unit test. The boundary is mechanical application-control knowledge: once that knowledge is non-trivial, repeated, or capable of obscuring the scenario, it does not belong in the test class. The acceptance test for the abstraction is whether a product-aware reader can understand the behaviour without first understanding the test framework or application plumbing.
 
 ## Bug Investigation Is a Sequence of Controlled Experiments
 
@@ -53,7 +94,32 @@ When removing a reproducer because other tests already protect the behaviour, ve
 
 Do not keep a test merely because it helped find a bug, and do not remove it merely because the bug is fixed. Keep the smallest, clearest set of tests whose enduring behavioural and risk-reduction value exceeds their continuing cost.
 
-## Recommended Automatically Routed Bug-Investigation Skill
+## Recommended Automatically Routed Skills
+
+The principles above will not reliably affect Claude merely because they exist in a project document. Make them load before tests or experiments are written by using model-invocable skills whose descriptions match ordinary requests. A path-scoped rule can additionally enforce the key test-shape requirements for the repository's integration and end-to-end test directories, but should contain only the concise local policy rather than duplicate the full skill.
+
+### Testing Conventions
+
+```md
+---
+description: Use automatically when creating, changing, reviewing, or refactoring unit, integration, system, UI, or end-to-end tests and test infrastructure. Enforces readable behavioural scenarios, focused application drivers, test isolation, and deliberate test-suite maintenance. Do not use when only running an unchanged test suite.
+---
+
+# Testing Conventions
+
+1. Identify the behaviour, boundary, and appropriate test layer before writing the test.
+2. Inspect nearby tests, fixtures, drivers, harnesses, Page Objects, builders, and canonical assertion patterns.
+3. Make the test body express the meaningful starting state, action, and expectation in application or domain language. Keep important intermediate verification explicit.
+4. Put non-trivial setup, application control, navigation, transport, selectors, synchronization, observation, diagnostics, and cleanup behind focused drivers or equivalent harness abstractions. Do not accumulate those mechanics in the test class.
+5. Keep scenario-defining values visible. Do not hide intent in global setup, opaque fixtures, or generic helpers.
+6. Give drivers semantic intent-based operations, deterministic waiting, useful failure diagnostics, and isolated lifetimes. Do not create a one-for-one wrapper or a shared mutable god-driver.
+7. Keep expectations independent from the production implementation; drivers may observe state but must not reproduce the logic that determines the expected result.
+8. If the existing test infrastructure cannot express the scenario clearly, refactor it for readiness before adding the test. Stop and ask before introducing a genuinely new testing pattern or dependency.
+9. Treat tests as maintained code. Refactor, rewrite, consolidate, or remove nearby tests when that proportionately improves clarity, coverage, reliability, or cost without losing valuable behavioural protection.
+10. Run the narrow test, then the relevant broader suite, and review failure output for diagnostic quality as well as correctness.
+```
+
+### Bug Investigation
 
 Keep this workflow in a focused, automatically discoverable skill rather than relying on the user to request it explicitly:
 
@@ -66,7 +132,7 @@ description: Use automatically when investigating, reproducing, diagnosing, or f
 
 1. Load the applicable subsystem conventions and inspect the relevant code, tests, logs, and recent changes.
 2. Define the observed failure and the smallest reliable reproducer.
-3. Add the smallest practical failing test first when the behaviour is testable.
+3. Load the testing conventions and add the smallest practical failing test first when the behaviour is testable. Use or improve the application driver rather than putting non-trivial control mechanics in the test class.
 4. Record the working-tree baseline and preserve pre-existing changes.
 5. For each conjecture, state the hypothesis and expected observation, make one minimal reversible experiment, and run the reproducer.
 6. Retain an experiment only when it produces predicted or clearly useful evidence. Otherwise reverse it completely before trying another conjecture. Never stack unsuccessful experiments.

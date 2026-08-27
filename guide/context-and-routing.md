@@ -135,6 +135,7 @@ Good skill categories:
 - global coding conventions,
 - subsystem conventions,
 - feature implementation workflow,
+- testing and test-infrastructure conventions,
 - bug investigation workflow,
 - review workflow,
 - release workflow,
@@ -159,6 +160,8 @@ Use a structure like this:
     frontend.md
   skills/
     feature-workflow/
+      SKILL.md
+    testing-conventions/
       SKILL.md
     bug-investigation/
       SKILL.md
