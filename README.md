@@ -15,7 +15,7 @@ This project uses Claude Code. Read [this guide](https://raw.githubusercontent.c
 
 Then inspect the project and its recent commit history.
 
-The goal is to turn Claude Code from a capable programmer into a world class programming team: one that can plan, implement, test, and improve the codebase with minimal supervision, while still surfacing meaningful decisions and risks.
+The goal is to turn Claude Code from a capable programmer into a world class programming team: one that can plan, implement, test, and incrementally improve our codebase with minimal supervision, while still surfacing meaningful decisions and risks.
 
 I need a brutally efficient and professional, Claude Code environment for this project.
 
