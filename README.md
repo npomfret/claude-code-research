@@ -1,23 +1,23 @@
 # Claude Code Research
 
-This repository contains a practical guide for designing Claude Code setups for serious, long-running software projects.
+This repository contains a practical guide to configuring Claude Code for long-running software projects.
 
-The main document, [claude-code-guide.md](claude-code-guide.md), is not a basic feature tour. It explains how to structure `CLAUDE.md`, skills, rules, hooks, conventions, MCP usage, permissions, and parallel workflows so Claude Code produces maintainable work instead of accumulating drift.
+The main document, [claude-code-guide.md](claude-code-guide.md), explains how to structure `CLAUDE.md`, skills, rules, hooks, conventions, MCP usage, permissions, and parallel workflows so Claude Code produces maintainable work without accumulating drift.
 
-The guide focuses especially on Claude's common failure modes: copying patterns locally, avoiding necessary refactors, inventing inconsistent abstractions, leaking vendor APIs through application code instead of encapsulating them, overusing tools, weakening type and database design, and treating UI code as disposable prototype work... to name but a few.
+It addresses common failure modes: local pattern copying, avoided refactors, inconsistent abstractions, leaked vendor APIs, tool overuse, weak type and database design, and disposable UI code.
 
 ## Suggested workflow
 
-Start `codex` - yes, Codex - and paste the following prompt:
+Start Codex and use this prompt:
 
 ```
-This project uses Claude Code. Read [this guide](https://raw.githubusercontent.com/npomfret/claude-code-research/refs/heads/main/claude-code-guide.md) and the material it links to so you understand Claude Code's capabilities and limitations.
+This repository uses Claude Code. Read the Claude Code guide at <guide-url> and its linked material to understand the product's capabilities and limitations.
 
-Then inspect the project and its recent commit history.
+Inspect the repository, its configuration, and its code.
 
-The goal is to turn Claude Code from a capable programmer into a world class programming team: one that can plan, implement, test, and incrementally improve our codebase with minimal supervision, while still surfacing meaningful decisions and risks.
+Configure Claude Code to plan, implement, test, and improve the codebase with minimal supervision while surfacing meaningful decisions and risks.
 
-I need a brutally efficient, clinical and professional Claude Code environment for this project.
+Create a concise, rigorous, and professional Claude Code environment for this repository.
 
-Create or update the project's Claude Code configuration, including a root `CLAUDE.md` only where the repository has crucial, broadly applicable facts or instructions that Claude cannot reliably infer. Do not use `CLAUDE.md` to index or link the contents of `.claude/`; make skills, rules, agents, and their supporting references discoverable through their own metadata, scope, placement, and ownership. Put scoped, procedural, or nuanced guidance in the mechanism that can express when it applies. Add project-specific guidance only when repository evidence shows that omitting it would predictably make Claude less reliable. You are free to update or remove existing sections that do not meet that standard.
+Create or update the repository's Claude Code configuration. Put only crucial, repository-wide facts that Claude cannot infer in root `CLAUDE.md`. Do not use it to index `.claude/`; make skills, rules, agents, and references discoverable through their metadata, scope, placement, and ownership. Put scoped or procedural guidance in a mechanism that controls when it loads. Include repository-specific guidance only when evidence shows that omitting it would reduce reliability. Remove existing material that does not meet this standard.
 ```

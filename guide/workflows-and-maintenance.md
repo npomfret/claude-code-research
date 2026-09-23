@@ -2,9 +2,7 @@
 
 ### The default workflow must be audit -> refactor -> implement -> verify
 
-Anthropic's [Best Practices](https://code.claude.com/docs/en/best-practices) rightly emphasizes planning, explicit success criteria, and verification. The missing hardening step is that planning must include readiness refactoring by default.
-
-Explicit success criteria are a force multiplier. Claude generally performs better when the task is framed as a verifiable outcome instead of a vague imperative. Success criteria alone do not guarantee a coherent implementation, however. For long-lived projects, combine them with the stronger workflow in this guide: audit first, refactor for readiness second, implement third, then verify against explicit criteria.
+Anthropic's [Best Practices](https://code.claude.com/docs/en/best-practices) emphasizes planning, explicit success criteria, and verification. Add readiness refactoring: frame the task as a verifiable outcome, audit first, prepare the structure, implement, and verify.
 
 For any non-trivial task, Claude should follow this sequence:
 
@@ -14,9 +12,7 @@ For any non-trivial task, Claude should follow this sequence:
 4. **Verify**: run the targeted checks, inspect output, and confirm the task against the stated success criteria.
 5. **Update config**: if the work established an approved new convention or clarified an existing one, update the Claude config in the same change.
 
-That sequence should be the default behavior, not an occasional act of discipline.
-
-The key point is that "working with the smallest diff" is not the goal. Claude should assume the codebase is probably not ready for the new feature, decide what preparation is needed, do that refactor, and only then add behavior. Otherwise it will force the feature through the current shape and leave the area worse than it found it.
+The smallest diff is not the goal. Determine whether the codebase is ready, make the necessary structural changes, and then add behavior.
 
 That includes resisting the lazy helper patch. If the first idea is "add another helper," Claude should stop and ask whether the real problem is missing encapsulation or an abstraction that needs to be reshaped first.
 
@@ -26,7 +22,7 @@ For every non-trivial change, Claude should deliberately answer this design ques
 
 > If I were starting this area from scratch, knowing what I know now, what would the best approach be?
 
-The answer is not a license to rewrite the world. It is a way to expose the shape the current feature actually wants: the right ownership boundary, a clear abstraction, encapsulated state, a coherent interface, and tests that describe the intended contract. Claude should then prepare the existing code toward that shape — refactor, extract, and encapsulate as far as the current task requires — before adding the new behavior.
+This question exposes the ownership boundary, abstraction, state model, interface, and tests the feature needs. Refactor toward that shape only as far as the task requires.
 
 When there is more than one viable approach, present the ideal solution first even if it is larger, more difficult, or needs approval. Then, if useful, present a lower-effort alternative with an explicit label such as “compromise” or “temporary path,” together with the debt, constraints, and future cleanup it creates. Claude must not lead with the shortest patch merely because it is easier to implement.
 
@@ -38,13 +34,11 @@ The audit step needs to be more explicit than "read the file you plan to edit." 
 - search for existing patterns, field names, error shapes, and helper usage across the repo before inventing a new variant
 - for every external API, SDK, or service touched, trace where its client and types enter the application, whether an application-owned adapter already exists, and how many callers would change if the provider were replaced
 
-If this is not spelled out, Claude will often optimize for the local patch instead of the repository pattern. That is the mechanism behind most wheel-reinvention and a large share of long-term drift.
+Without this audit, Claude often optimizes for a local patch and reinvents repository patterns.
 
 ### Refactor for readiness, not speculative architecture
 
-There is an important boundary here. This guide argues for aggressive readiness refactoring before feature work. That is not permission for Claude to invent broad frameworks "for the future."
-
-The right counterweight is YAGNI: prepare the code for the current requirement without designing for hypothetical ones.
+Readiness refactoring does not permit speculative frameworks. Apply YAGNI: prepare for the current requirement without designing for hypothetical ones.
 
 - refactor what the current task needs in order to become coherent
 - do not build abstractions for hypothetical future use cases
@@ -52,7 +46,7 @@ The right counterweight is YAGNI: prepare the code for the current requirement w
 - do not create a general-purpose layer until there is real duplication or a second concrete use case
 - do isolate an external system on first use; its independently changing contract, failure modes, and need for test substitution are already concrete reasons for a boundary
 
-The distinction matters because Claude drifts in both directions. Sometimes it patches too little. Sometimes it generalizes too much. A good setup tells it to prepare the ground for the current task, not to redesign the entire area around imagined future requirements.
+Prepare for the current task without either patching too little or generalizing beyond evidence.
 
 ### Preventing premature implementation
 
@@ -62,26 +56,22 @@ Use prompts that demand the preparation phase explicitly:
 
 > Add retry behavior to the existing workflow. First audit the current retry, error-handling, and orchestration patterns. Assume the current structure may need refactoring before the feature. Stop and ask before introducing new libraries or abstractions. Only implement after explaining the readiness refactor and verification plan.
 
-This is better than:
+Avoid vague prompts such as:
 
 > add retries
 
-The official docs are correct that specificity matters. For long projects, specificity must include readiness expectations.
-
-It should also include success criteria. In practice, the strongest prompt shape for non-trivial work is:
+For non-trivial work, specify readiness expectations and success criteria:
 
 - describe the intended outcome
 - require the audit
 - require the readiness refactor if needed
 - define the checks that prove the task is complete
 
-That gives Claude the benefits of goal-driven execution without collapsing into smallest-diff thinking.
-
 Design-system migrations need a specialized version of this workflow because component convergence must precede the broad token sweep, and provably neutral substitutions should be separated from visible design decisions. See [Design-System Refactors](design-system-refactors.md) for that sequencing and its verification model.
 
 ### Progressively disclose manual verification
 
-When verification requires the user to perform several manual checks, Claude should not dump the complete procedure for every check into one message. That may be comprehensive, but it transfers the burden of sequencing, remembering, and reporting the work to the user.
+When verification requires several manual checks, do not present every detailed procedure at once. That transfers sequencing, memory, and reporting work to the user.
 
 Instead, Claude should first make the scope visible: state how many checks are needed and give a brief, one-line inventory of them. Then guide the user through one check at a time. Explain only the steps for the current check, ask for the result or reaction, and use that feedback before moving to the next one.
 
@@ -91,17 +81,15 @@ A good interaction looks like this:
 >
 > Let's start with sign-in. Open the login page, sign in with your test account, and tell me whether you reach the dashboard without seeing an error or unexpected delay.
 
-This gives the user advance warning about the size and shape of the task without confronting them with eight sets of instructions at once. If the checks are independent, Claude can keep a short visible progress record as it goes. It should provide the full checklist up front only when the user asks for it, needs to delegate it, or explicitly wants to run the checks independently.
+This shows the scope without overwhelming the user. Keep a short progress record when checks are independent. Provide the full checklist up front only when requested or needed for delegation or independent execution.
 
 ## Configuration Maintenance
 
 ### The configuration system should evolve with the codebase
 
-This is an underused but high-leverage idea. Claude should not just consume `CLAUDE.md`, skills, agent definitions, and convention files. It should help maintain them.
+Claude should maintain `CLAUDE.md`, skills, agent definitions, and convention files as part of normal development.
 
-Anthropic's skills and memory systems provide the mechanisms for durable repository guidance. The missing operational guidance is this: configuration updates should be part of normal development, not deferred cleanup.
-
-Treat this as controlled self-improvement. When Claude encounters a recurring failure mode, a missing convention, broken native discovery, or an unclear workflow, it should not just work around the problem for the current task. It should propose or make the smallest approved config improvement that helps it do a better job next time.
+When Claude finds a recurring failure, missing convention, broken discovery path, or unclear workflow, it should propose or make the smallest approved configuration improvement.
 
 ### What Claude can update autonomously
 
@@ -129,7 +117,7 @@ Claude must ask before:
 - introducing a new dependency,
 - or changing architecture boundaries.
 
-The rule is simple: Claude may maintain established configuration, but the human owns its policy.
+Claude may maintain established configuration; humans own its policy.
 
 ### Add a config-maintenance skill
 
@@ -151,16 +139,16 @@ user-invocable: true
 4. If it is a policy change, stop and ask for approval.
 5. Update the smallest correct file.
 6. Keep always-loaded instructions short; keep scoped detail with the rule or skill that owns it.
-7. Ensure the updated instructions match the codebase as it exists now.
+7. Ensure the updated instructions match the codebase.
 ```
 
-This keeps the configuration system alive without turning every task into a documentation exercise.
+This maintains configuration without turning every task into documentation work.
 
 ### Version-control the config with the code
 
 Do not treat Claude config as personal local clutter if the project is team-owned. Project-level skills, agent definitions, conventions, and root `CLAUDE.md` instructions belong in version control so the codebase and the agent instructions evolve together.
 
-The practical benefit is enormous:
+Benefits:
 
 - convention changes are reviewed,
 - instruction drift is visible,

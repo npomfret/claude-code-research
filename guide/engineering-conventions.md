@@ -2,9 +2,7 @@
 
 ### Conventions are the anti-drift system
 
-This is the most important section in the guide.
-
-If Claude is sloppy by default, then coding conventions are not style preferences. They are the infrastructure that prevents sloppiness from accumulating. Anthropic's best-practices and memory guidance point in this direction but stop short of making it a complete engineering system. This guide makes it explicit: conventions are the primary quality mechanism.
+Coding conventions are infrastructure, not style preferences. They are the primary mechanism for preventing local shortcuts from accumulating into drift.
 
 ### What must be specified
 
@@ -33,7 +31,7 @@ Your convention system must cover every area where Claude can invent a new local
 
 If a topic can drift, it needs a convention.
 
-Language-specific and framework-specific rules are especially high leverage. Claude's laziness often shows up as "good enough for this file" code that violates the idioms of the language or framework the rest of the codebase is using. Explicit language-level rules are a strong way to constrain that lazy but enthusiastic behavior before it spreads.
+Language- and framework-specific rules prevent locally adequate code from violating repository-wide idioms.
 
 Examples:
 
@@ -44,9 +42,9 @@ Examples:
 
 #### Type Safety as a Design Tool
 
-Claude is also too lazy about type safety in languages and codebases that support it well. Its default behavior is often to satisfy the immediate local problem with weaker typing than the codebase should tolerate: loose shapes, partial typing, untyped boundaries, `any`-style escapes, or values that could have been made precise but were left vague to get the task over the line.
+Claude often solves local problems with weaker typing than a codebase should tolerate: loose shapes, partial typing, untyped boundaries, `any`-style escapes, or needlessly vague values.
 
-That is backwards. In typed codebases, strong type information is one of the main tools that keeps drift, ambiguity, and bugs under control. Good teams treat type safety like a useful virus: once a part of the system is made precise, that precision should spread outward through the surrounding code instead of stopping at one file boundary.
+In typed codebases, strong type information controls drift, ambiguity, and bugs. Precision should propagate through surrounding code rather than stop at one file boundary.
 
 The convention should push Claude toward that posture:
 
@@ -56,7 +54,7 @@ The convention should push Claude toward that posture:
 - use the compiler as a design assistant and verification tool, not as an obstacle to work around
 - avoid lazy escape hatches unless there is a clear, deliberate reason and the project accepts it
 
-The important mindset is that the compiler is helping. If a type-safe language or codebase gives you a chance to let the type system carry more of the correctness burden, Claude should normally take that chance. Otherwise it leaves the project with the worst of both worlds: the ceremony of a typed codebase and the safety level of an untyped one.
+Use the compiler to carry as much of the correctness burden as practical. Avoid the ceremony of typed code without its safety.
 
 #### Abstractions, Encapsulation, and the Helper Smell
 
@@ -81,14 +79,14 @@ Required rules:
 
 A good review question is: **what knowledge does this unit hide, and what invariant or decision does it own?** If the answer is "none; it just forwards calls" or "callers assemble the behavior themselves," the boundary is probably not earning its existence.
 
-Claude is also too eager to throw "helpers" at a design problem. That is one of its laziest habits. Instead of stepping back, examining the shape of the code, and improving the owning abstraction, it will often patch over the discomfort by adding another helper function, wrapper, or utility file near the problem.
+Claude often patches design problems with another helper, wrapper, or utility instead of improving the owning abstraction.
 
 That usually means one of two things:
 
 - the design was not ready for the new requirement and should have been refactored first
 - the abstraction boundary is wrong and Claude chose a convenience patch instead of fixing it
 
-Helpers are not forbidden. The problem is helper-first thinking. When helpers become the default response, they are often a sign that corners were cut and encapsulation was not taken seriously enough.
+Helpers are valid when justified, but helper-first thinking often signals weak encapsulation.
 
 The convention should push Claude toward the harder-looking but usually better move:
 
@@ -97,7 +95,7 @@ The convention should push Claude toward the harder-looking but usually better m
 - refactor the structure until the new behavior has an obvious home
 - treat a new helper as a choice that needs justification, not as the automatic safe option
 
-In practice, code is almost never "already ready" for the next requirement. It has to be grown into readiness through repeated inspection and refactoring. Claude should be trained to look, consider, design, and refactor before it writes the next line of implementation code. Throwing a helper at the problem is often just a way to avoid that work.
+Inspect and refactor code for readiness before implementing a new requirement. A helper must not substitute for that work.
 
 The acceptance test is not the number of classes or the absence of duplication. After the refactor, callers should know less, the owning unit should control more of its own validity and behavior, and a future implementation change should affect fewer places. If those properties did not improve, Claude probably moved code rather than improving the abstraction.
 
@@ -127,13 +125,13 @@ Use the replacement test during design and review:
 
 > If this provider disappeared tomorrow, would the change be concentrated in one adapter, its composition wiring and configuration, plus genuinely provider-specific product behavior?
 
-If ordinary use cases, domain objects, view models, handlers, or tests would all need coordinated edits, the external contract has leaked past its boundary. Claude should fix that leakage in the touched path before adding more calls. This is not speculative abstraction: an external contract is already a concrete source of variability, and isolating it immediately is cheaper than extracting it after its types and usage patterns have spread.
+If replacing a provider would require coordinated edits across use cases, domain objects, view models, handlers, or tests, its contract has leaked. Fix leakage in the touched path before adding calls. External contracts are concrete sources of variability, so isolate them before their types and usage patterns spread.
 
-Claude is unlikely to apply this consistently from general advice about "good architecture." Encode the concise governing rule in root `CLAUDE.md` when it applies across the repository, keep the design detail in the automatically discoverable engineering convention, and make the feature workflow inspect every touched integration for leakage. Where the language and module structure permit it, add import-boundary checks that allow a vendor package only in its adapter and composition code. Review and tests then check the application-owned contract and the replacement test above rather than merely asking whether the client was injected.
+General advice about "good architecture" is insufficient. Put a concise repository-wide rule in root `CLAUDE.md`, detailed guidance in a discoverable convention, and integration-leakage checks in the feature workflow. Where possible, enforce import boundaries so vendor packages appear only in adapters and composition code. Review the application-owned contract and replacement boundary, not merely whether the client was injected.
 
 #### Construct at the Edges; Pass Capabilities Inward
 
-Claude frequently writes code that is difficult to test because it hides object construction and external access inside the code that performs the useful behavior. A service creates its own HTTP client, a view model reaches for a singleton, a method reads configuration from the environment, or a repository opens its own database connection. The dependency is real, but it is absent from the type's public construction contract. Unit tests then need global mutation, framework bootstrapping, monkey-patching, real I/O, or knowledge of private implementation details merely to exercise one behavior.
+Code becomes difficult to test when useful behavior hides object construction or external access. A service may create its HTTP client, a view model may reach for a singleton, or a repository may open its own database connection. These dependencies are absent from the public construction contract, forcing tests to use global mutation, framework bootstrapping, monkey-patching, real I/O, or private implementation knowledge.
 
 The governing rule should be stated plainly:
 
@@ -156,9 +154,9 @@ unit test   -> construct the same functionality with fakes
             -> invoke behavior directly
 ```
 
-Dependency direction matters more than directory names or a prescribed number of layers. The entry point and construction layer know concrete infrastructure. Functionality code depends on narrow roles or capabilities supplied by the caller; it does not know how production implementations are found or assembled. This applies in object-oriented and non-object-oriented code alike: use constructor parameters for stable object collaborators, function parameters or explicit context values for functional code, and method parameters for data that varies per call.
+Dependency direction matters more than directory names or layer counts. Entry points and construction layers know concrete infrastructure. Functionality code receives narrow capabilities without knowing how production implementations are found or assembled. Use constructor parameters for stable collaborators, function parameters or explicit context values for functional code, and method parameters for per-call data.
 
-Mutable static and global state are banned. This includes language-level globals, module- or file-scoped mutable variables, singleton instances, static mutable properties, global registries, shared caches, and convenience APIs such as `shared`, `current`, or `default` when they conceal process-wide mutable state. These constructs hide dependencies and lifetimes, couple otherwise unrelated code, leak state between tests, make parallel execution unsafe, and force tests to reset global state in the correct order. A unit that depends on them cannot be tested honestly in isolation.
+Ban mutable static and global state: language globals, file-scoped mutable variables, singleton instances, static mutable properties, global registries, shared caches, and convenience APIs such as `shared`, `current`, or `default` when they conceal process-wide state. These constructs hide dependencies and lifetimes, couple unrelated code, leak between tests, and make parallel execution unsafe.
 
 Do not work around the ban by placing mutable state behind static accessors or a singleton protocol. That changes the syntax, not the architecture. The state must belong to an explicitly constructed object with a deliberate lifetime, and that object—or a narrow capability backed by it—must be passed to its consumers.
 
@@ -202,15 +200,15 @@ This structure makes unit testability a design property rather than a testing tr
 - Does production wiring live in an obvious construction boundary that can be inspected separately?
 - Would a reader know the unit's required capabilities from its public API rather than searching its method bodies?
 
-Teach this as an automatically loaded engineering convention, not a phrase the user must remember to add to every prompt. Put a concise governing rule in root `CLAUDE.md` only if it is crucial across the entire repository; otherwise scope it to the relevant files or task type. Make this detailed convention discoverable through the owning rule or skill rather than a root-file link. Require the feature workflow to inspect new and touched code for hidden construction and I/O; and, where the language permits it, enforce dependency direction with architecture tests or static import rules. Tests should normally construct the unit directly with explicit fakes. If that is awkward, Claude should treat the awkwardness as evidence about the design and improve the boundary before adding more mocking machinery.
+Load this convention automatically. Put only its crucial repository-wide rule in root `CLAUDE.md`; otherwise scope it to relevant files or tasks and expose the detail through the owning rule or skill. Require workflows to inspect touched code for hidden construction and I/O. Enforce dependency direction with architecture tests or import rules where possible. Tests should construct units directly with explicit fakes; awkward construction is evidence that the boundary needs improvement.
 
-This is closely aligned with the design pressure described in [Growing Object-Oriented Software, Guided by Tests](https://growing-object-oriented-software.com/), while the specific name for the single application assembly boundary is Mark Seemann's [Composition Root](https://blog.ploeh.dk/2011/07/28/CompositionRoot/). Martin Fowler's broader formulation is also useful: the essential separation is between [configuring services and using them](https://martinfowler.com/articles/injection.html#SeparatingConfigurationFromUse).
+See [Growing Object-Oriented Software, Guided by Tests](https://growing-object-oriented-software.com/) for the testability pressure behind this design, Mark Seemann's Composition Root for the assembly boundary, and Martin Fowler on [separating service configuration from use](https://martinfowler.com/articles/injection.html#SeparatingConfigurationFromUse).
 
 #### Duplication, Redundancy, and the Code Tax
 
 Claude also needs explicit pressure against leaving extra code behind. It often misses an existing implementation and re-creates it, or it completes a refactor but leaves the old path, wrapper, branch, helper, or partially superseded code lying around "just in case."
 
-That is not harmless. Every line of code carries a maintenance cost. Every duplicate branch, redundant wrapper, stale helper, and unused file increases the code tax the team has to pay forever after.
+Every duplicate branch, redundant wrapper, stale helper, and unused file adds maintenance cost.
 
 The convention should be simple:
 
@@ -219,7 +217,7 @@ The convention should be simple:
 - do not leave dead code, unused helpers, redundant branches, or superseded implementations behind after a change
 - if Claude finds existing code that already solves the problem, it should reuse or consolidate it instead of reimplementing it nearby
 
-Almost always, less code is better than more code that does the same job. The burden of proof should be on keeping the extra code, not on deleting it.
+Prefer less code when behavior is equivalent. Extra code must justify its maintenance cost.
 
 #### Comments Are an Exception, Not a Substitute for Clear Code
 
@@ -240,7 +238,7 @@ Everything else should be expressed in code or removed. In particular, Claude mu
 - headings or divider comments used to organize a function that should instead be decomposed
 - comments that repeat type information, parameter names, return values, or test assertions
 - `Arrange`, `Act`, and `Assert` labels around already readable tests
-- comments commemorating a change, fix, refactor, or previous implementation; version control owns that history
+- comments commemorating a change, fix, refactor, or superseded implementation; version control already records the change
 - commented-out code, speculative TODOs, conversational notes, or explanations addressed to the reviewer
 - comments used to excuse confusing names, oversized functions, leaky abstractions, tangled control flow, or missing types
 
@@ -256,9 +254,9 @@ Only if the essential information still cannot live in the code should a comment
 
 #### Frontend File Boundaries
 
-Frontend code deserves an explicit warning because Claude is particularly bad here. Left unguided, it will happily pour HTML, CSS, TSX, local state, helper functions, and one-off subviews into a single large component file no matter how complex the screen becomes. That is one of its default failure modes.
+Without explicit boundaries, Claude tends to combine markup, styling, state, helpers, and subviews in oversized component files.
 
-The deeper issue is that Claude often does not respect UI code as architecture. It treats frontend work like prototype presentation glue: get the screen to look roughly right, put the CSS near the component that needs it, and move on. That is the wrong posture for a real product. UI code has contracts just like backend code: component APIs, design tokens, semantic naming, accessibility behavior, responsive layout rules, interaction states, loading and error states, and brand consistency. A local CSS value or one-off TSX shape is not harmless just because it is visual. It becomes part of the product's language.
+UI code is architecture, not presentation glue. Its contracts include component APIs, design tokens, semantic naming, accessibility behavior, responsive layout, interaction states, loading and error states, and brand consistency. Local CSS values and one-off component shapes become part of the product language.
 
 A serious frontend convention should push in the opposite direction:
 
@@ -268,7 +266,7 @@ A serious frontend convention should push in the opposite direction:
 - treat extraction as a readability and maintainability tool, not just a reuse optimization
 - treat styling, layout, and interaction patterns as durable product infrastructure, not as disposable prototype code
 
-The key point is not "split everything aggressively." The key point is that a growing UI file should not be Claude's resting state. Extraction has multiple benefits even before reuse happens: smaller files are easier to review, patterns are easier to discover with search, and future work is less likely to pile more logic into one oversized TSX file. If a component is becoming hard to scan, that is already enough reason to consider decomposition.
+Do not split everything mechanically, but do not let growing UI files become the default. Smaller files are easier to review and search, and they discourage further accumulation. A component that is hard to scan is a candidate for decomposition even before reuse appears.
 
 #### Application Primitives
 
@@ -276,13 +274,13 @@ Claude is reluctant to create application primitives. It often treats a repeated
 
 These primitives are not premature abstraction when the product already repeats the concept. They are how the application preserves UI/UX consistency, accessibility behavior, responsive behavior, interaction states, and future design flexibility. A local button style or one-off warning box may look cheaper in the current diff, but it teaches Claude and future contributors that the product language is optional.
 
-The setup should name this explicitly. Use terms like `application primitives`, `product UI primitives`, or `design-system primitives`, and define where they live. The important part is not the label. The important part is that repeated UI behavior gets a stable home instead of being recreated screen by screen.
+Name these concepts `application primitives`, `product UI primitives`, or `design-system primitives`, and define where they live. Repeated UI behavior needs a stable home.
 
 #### Frontend Semantic Tokens
 
 Frontend semantics deserve another explicit rule: Claude is too eager to reuse visual styles by superficial appearance instead of by meaning.
 
-This usually shows up in token and class reuse. Claude sees an existing style or token with the right visual output and reuses it even when the semantic meaning is different. For example, a codebase may have a red `danger` token used for errors or destructive actions. Later, another feature may need something visually red for a completely different domain meaning. Claude will often reuse the `danger` token because the color matches, even though the meaning does not. That is the wrong abstraction.
+This often appears in token and class reuse. For example, a red `danger` token for errors or destructive actions does not represent an unrelated domain concept merely because both render red.
 
 The convention should be semantic tokens first, implementation second:
 
@@ -291,7 +289,7 @@ The convention should be semantic tokens first, implementation second:
 - allow two semantic tokens to resolve to the same presentational value when appropriate, but keep the semantic names distinct
 - prefer domain-language naming in domain features, even when the current visual treatment overlaps with an existing utility
 
-This matters because visual coincidence is not semantic equivalence. Two concepts may share a presentational value today and need different treatments later. If the code collapses both concepts into one token, future design changes become harder and the current code becomes less legible. Claude needs explicit guidance here because its default instinct is "reuse the style that looks right," not "preserve the meaning of the UI state in the naming layer."
+Visual coincidence is not semantic equivalence. Separate concepts may share a value while needing independent names and future treatments. Collapsing them makes code less legible and design changes harder.
 
 #### Site-Wide Semantic Constants
 
@@ -322,9 +320,9 @@ Creating or retrofitting that system needs a stricter workflow than ordinary com
 
 #### Structured Logging
 
-Logging deserves to be called out explicitly because Claude is reliably bad at it. This is not just a style issue. It is a data-quality issue.
+Logging is a data-quality concern, not just a style concern.
 
-Claude is trained on huge volumes of internet code, and internet logging examples are full of obsolete habits: interpolated strings, inconsistent field naming, multiline dumps, and messages that are half prose and half data. That style produces log files that are hard to filter, hard to aggregate, and unpleasant to query. A serious Claude setup should counter this with an explicit logging convention.
+Interpolated strings, inconsistent field names, multiline dumps, and prose-data mixtures produce logs that are difficult to filter, aggregate, and query. Define an explicit logging convention.
 
 The convention should be simple:
 
@@ -345,13 +343,13 @@ Good:
 logger.debug(`item change observed`, { item: foo, count })
 ```
 
-This one change is disproportionately valuable. Once the pattern is applied consistently, log files stop being messy text blobs and start acting like an audit stream of application activity. They can be filtered by label, aggregated by field, and queried without brittle string parsing.
+Applied consistently, this pattern creates an event stream that can be filtered by label, aggregated by field, and queried without brittle string parsing.
 
 If the codebase cares about observability, do not leave logging style to Claude's judgment. Write down the event-label-plus-JSON rule as a convention, add examples, and enforce it in review.
 
 #### HTTP and API Behavior
 
-APIs deserve another explicit warning. Claude often treats API work as "return the right JSON and move on," which means it forgets or postpones standard HTTP concerns that should usually be considered up front.
+API work must account for protocol behavior, not only response JSON.
 
 That includes things like:
 
@@ -361,7 +359,7 @@ That includes things like:
 - cache behavior, cache-control policy, and freshness rules
 - validators such as `ETag` and related conditional request support where appropriate
 
-The exact choices depend on the product, traffic pattern, and infrastructure, so the guide should not prescribe one universal header set. The rule is more general: when building or changing an API, Claude should not assume the job ends at the response body shape. It should either build in the relevant protocol-level behavior or explicitly ask which HTTP conventions the project expects. Otherwise it will ship narrow endpoint logic that works functionally but ignores basic industry-standard concerns until later, when they are more awkward to retrofit.
+Header choices depend on the product, traffic, and infrastructure. API work does not end at the response body: implement relevant protocol behavior or ask which HTTP conventions apply. Do not defer basic protocol concerns until they are costly to retrofit.
 
 #### Exceptions and Fail-Fast Behavior
 
@@ -382,11 +380,11 @@ Almost always, the safer default is fail fast:
 - if the code cannot restore a valid state, do not catch-and-carry
 - if the project wants a different exception policy, Claude should ask rather than invent one
 
-The practical rule is simple: if something is broken, let it break loudly enough that it can be found and fixed. Silent recovery and local log-and-continue behavior often make systems less reliable, not more.
+Let unrecoverable failures surface clearly. Silent recovery and local log-and-continue behavior reduce reliability.
 
 #### Exception Logging and Context
 
-Logging exceptions has its own convention. Claude often logs only the error message and discards the stack trace. That is almost always the wrong tradeoff. When an exception is logged, the stack trace is usually the most valuable part because it tells you where the problem actually happened. A message without a stack trace is often just a complaint with no location data.
+Do not log only an exception message and discard its stack trace. The stack trace identifies the failure location.
 
 The triggering state is often just as important. Parameters, identifiers, and other relevant runtime context can be the difference between a fixable production failure and an untraceable mystery. When the language and platform allow it, Claude should preserve that context with the exception rather than discarding it or reducing it to a vague log line.
 
@@ -399,13 +397,13 @@ So the convention should say:
 - avoid logging the same exception repeatedly at multiple layers as it bubbles outward
 - log once at the boundary that is responsible for reporting, handling, or terminating the failure
 
-This is another place where Claude needs an explicit rule because its default instinct is to catch early, log a string, and keep going. That looks defensive in a diff and is often disastrous in production behavior.
+Explicitly prohibit early catch-log-and-continue behavior unless the code can recover.
 
 #### Mechanical Formatting
 
 Formatting deserves special treatment. Claude is not reliable at preserving exact formatting conventions over time, especially in mixed-language repos or codebases with very specific style requirements. Do not rely on prose alone here. Put formatting under mechanical control.
 
-This is a practical recurring failure mode. Claude leaves behind small inconsistencies everywhere: quote style drifts, spacing changes from file to file, line wrapping becomes arbitrary, and the repo slowly accumulates formatting noise that has nothing to do with the task. Left alone, this creates review churn and makes real code changes harder to see.
+Uncontrolled quote style, spacing, and line wrapping create review churn and obscure substantive changes.
 
 For many teams, [dprint](https://dprint.dev/) is a strong default because it is fast, multi-language, and configuration-driven. The practical pattern is:
 
@@ -440,4 +438,4 @@ Module-local conventions should cover:
 - database-access rules,
 - and any place where the module really does work differently.
 
-This is why the "router plus on-demand skills" model matters. Global guidance stays short. Local detail is discovered when relevant.
+Keep global guidance short and load local detail when relevant.

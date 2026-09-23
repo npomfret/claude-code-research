@@ -44,7 +44,7 @@ Use it as an index, not an oracle. Static call graphs have blind spots around re
 There are two operational cautions:
 
 - `gitnexus analyze` can install skills, register hooks, and write context into `CLAUDE.md` or `AGENTS.md`. Review those changes instead of accepting generated repository instructions blindly. Prefer a narrow or read-only integration when graph queries are all you need.
-- The current repository uses the PolyForm Noncommercial 1.0.0 license. Personal and other qualifying noncommercial use is permitted; commercial teams must review the license or obtain appropriate terms before adoption.
+- GitNexus uses the PolyForm Noncommercial 1.0.0 license. Personal and other qualifying noncommercial use is permitted; commercial teams must review the license or obtain appropriate terms before adoption.
 
 ### ast-grep for structural search and codemods
 
@@ -63,7 +63,7 @@ Start with search-only output, inspect representative matches and edge cases, th
 
 For JavaScript and TypeScript repositories, [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) can validate import relationships against checked-in rules. It can detect cycles, orphans, undeclared dependencies, production code importing test code, and forbidden layer crossings.
 
-This is stronger than telling Claude "respect the architecture." Once the allowed import directions are encoded, the same rule applies to Claude, human programmers, and CI. Use its graph output to investigate the current structure; use its rule output to prevent regression.
+Encoded import directions apply equally to Claude, human programmers, and CI. Use graph output to investigate structure and rules to prevent regression.
 
 ### Knip for dead-code and dependency cleanup
 
@@ -80,5 +80,4 @@ The best outcome is not merely that Claude used a tool once. Convert stable find
 - dead-code detection becomes a repeatable check;
 - and canonical compiler, graph, search, and analysis commands become part of the repository's documented verification surface.
 
-That is the dividing line between programmer tooling and Claude theatre: useful tools produce inspectable evidence and leave the codebase easier to verify without the current conversation.
-
+Useful tools produce inspectable evidence and leave the codebase verifiable without the current conversation.

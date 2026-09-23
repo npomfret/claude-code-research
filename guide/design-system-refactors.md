@@ -1,10 +1,8 @@
 # Design-System Refactors
 
-Design-system work is not a styling sweep. It is a cross-cutting refactor of the product's visual semantics, shared component boundaries, platform bindings, and verification model. Claude is especially likely to get this work wrong because a locally plausible token substitution can look like progress while leaving the repository with two competing UI languages.
+Design-system work is a cross-cutting refactor of visual semantics, shared component boundaries, platform bindings, and verification. A plausible token substitution can look correct while leaving two competing UI languages.
 
-This chapter is derived from a real multi-target application that retrofitted a token layer and shared component boundary across several user-facing surfaces without an existing UI snapshot suite. Its conclusions were checked against another application whose semantic token table was already mature but whose adaptive layouts and rendered-evidence system were under active pressure. The detailed [failure catalogue](https://github.com/npomfret/no-spoilers/blob/main/FACTORING-A-DESIGN-SYSTEM.md) remains the living evidence base; this chapter extracts the reusable operating rules.
-
-A third case, a browser application of roughly 120 stylesheets retrofitted over about fifty single-purpose commits, contributed the web-specific material below: the cascade as a drift mechanism, simulated semantic elements, and render paths missed during convergence. That case is worth stating plainly because it is the ordinary one. No design system was ever decided against; the product simply accumulated one visual decision at a time, each locally reasonable, until a single border width existed in 161 places and 289 font weights were written as bare numbers. Nothing in that history required a bad engineer or a bad instruction — only the absence of a named owner at the moment each value was first written, which is the default condition of a codebase an agent is adding features to.
+The operating rules below cover token modelling, component convergence, cascade control, semantic markup, adaptive layout, and rendered verification.
 
 ## Start with a falsifiable outcome
 
@@ -23,7 +21,7 @@ Do not begin from a representative reading of the likely files. Count first. Inv
 
 Record the baseline as numbers. The initial counts become acceptance criteria and expose categories that prose inspection misses. Keep a documented-literal escape hatch for values that should remain local, but require the code to say why they are not tokens.
 
-Be especially careful with a check that guards the token layer's own internals. A step that regenerates the stylesheet from its authored source and diffs the two is worth having, runs on every build, and reads in a status summary exactly like a design-system check — but it only proves that the generated artifact is in sync with its generator. It says nothing about whether a single call site consumes a token, and a project can pass it on every commit while a hundred stylesheets write raw values, override each other, and reference custom properties that were never declared. Name what each green check licenses you to claim.
+A check that regenerates a stylesheet and diffs it against its authored source proves only that the generated artifact is synchronized. It does not prove that call sites use tokens or avoid raw values, overrides, and undeclared custom properties. State exactly what each check proves.
 
 An escape checker is valuable, but score it against the claim it actually proves. A rule that rejects raw colours, fonts, spacing, or radii outside the token layer proves that call sites route through the intended boundary. It does not prove that changing a token reaches every applicable surface, that correlated values are used together, that a shared component has not been reimplemented, or that the resolved result is readable. Keep routing compliance and rendered outcome as separate acceptance criteria.
 
@@ -112,7 +110,7 @@ Do not let majority vote overrule semantics, accessibility, an existing specific
 
 ### Migrate every render path, not the one on screen
 
-The characteristic self-inflicted defect of this work is a component whose loaded state is converged onto the new primitive while its other render paths are left behind. A component typically renders several: the populated one, a loading skeleton, an empty state, an error state, and often a distinct small-screen arrangement. The skeleton is the one that gets missed, because it is the hardest to reach deliberately, it rarely appears in a review diff next to the code that replaced it, and stripping a now-shared style rule leaves it visually bare rather than broken.
+A common defect is migrating only a component's loaded state. Components may also render loading, empty, error, and small-screen states. Loading skeletons are easy to miss because they are difficult to reach deliberately and may become visually bare rather than functionally broken when shared styles move.
 
 When a style block moves into a primitive, enumerate every element that referenced it and resolve each to the primitive that now owns it. Then drive each state in the running application — hold the request open, fail it, empty the data — rather than reasoning about it. Treat "this state is unreachable with the available data" as a named coverage gap, not as an absence of risk.
 
@@ -131,7 +129,7 @@ The corresponding rule for space is that a component never carries its own outgo
 
 ## Do not confuse styling with semantics
 
-A design-system refactor usually arrives at a surface that looks correct and is structurally wrong, because the fastest way to make a layout was to draw it. A grid of generic containers given table-like styling reads as a table to a sighted user and as an undifferentiated run of text to a screen reader; it also forfeits column sizing, header association, and sort state, so each surface reimplements those too. The same mistake has smaller forms: a role attribute that hides the element's own content, or a display mode that stops an element being the thing its parent needs it to be.
+A surface can look correct while remaining structurally wrong. A grid of generic containers styled as a table becomes undifferentiated text to a screen reader and loses column sizing, header association, and sort state. Similar defects include roles that hide content and display modes that break required parent-child semantics.
 
 These defects do not show up in a token inventory, they do not fail a build, and they usually predate the refactor. Inventory them alongside the visual values: which surfaces render data in the right element, which simulate it, and which have a role that contradicts their content. Converging a simulated component onto the real one is frequently where the largest accessibility and responsive-layout wins are, and it is also the change most likely to be scored as "just styling."
 
@@ -161,7 +159,7 @@ The same problem occurs with colour and state. A descendant may correctly choose
 
 ### Keep a reusable component inside its proposed bounds
 
-A child that sizes itself from a distant container can bypass padding and frames introduced by its reusable parent. The arithmetic may return the same nominal width and still change which ancestor the width was measured against, producing overflow only in the composed screen. Prefer the immediate layout proposal. If a component deliberately escapes an intermediate content constraint on large canvases, model that as an explicit capability with a true no-op below its threshold, not as a container-sized fallback that still overrides intermediate constraints.
+A child sized from a distant container can bypass its reusable parent's padding and frames, causing overflow only in composition. Prefer the immediate layout proposal. If a component must escape an intermediate constraint on large canvases, model that as an explicit capability with a true no-op below its threshold.
 
 ### Visual occlusion is not accessibility occlusion
 
@@ -197,11 +195,11 @@ Visual verification also needs discipline:
 
 "I opened it and nothing moved" is not visual evidence. One viewport, one state, and human memory do not establish neutrality.
 
-For behaviour rather than appearance, the strongest available check is to run the pre-change revision alongside the changed one — a second build, a second dev server, a second simulator — and drive both with the same script. Keyboard order, focus indication, touch-target sizes, announced states, and input sizing are properties of the running application, and a refactor's claim about them is a claim about something the diff cannot contain. This is also the only practical way to distinguish a genuine improvement from a regression when a count changes: a surface going from many undersized touch targets to one is the simulated component becoming a real one, and a surface losing most of its tab stops may be a group of controls correctly becoming a single composite rather than a loss of access.
+For behaviour, run the baseline and changed builds side by side and drive both with the same script. Diffs cannot prove keyboard order, focus indication, touch-target sizes, announced states, or input sizing. Runtime comparison also explains count changes: fewer undersized targets can indicate a real component replacement, while fewer tab stops can indicate correct composite-control behavior rather than lost access.
 
 Finally, resist the temptation to score a convergence as neutral because it was mechanical. A value snapped onto a shared scale has moved, even by a pixel, and the honest report names the direction and the amount for each. A change described as "no visual difference" that in fact shifted a dozen paddings by two pixels teaches the next reader that the summary cannot be trusted.
 
-Treat capture infrastructure as evidence-producing code. A screenshot named for a state must contain that state; existence of the target element below the fold is not enough. Wait for transitions to settle, derive orientation labels from the rendered canvas rather than from the requested device state, and prefer no capture to a confidently mislabelled one. If one pathological surface forces a device, orientation, appearance, or accessibility leg to be disabled globally, make restoring, replacing, or explicitly retiring that leg part of the blocking defect's completion criteria. Otherwise one local bug silently erases visual confidence for unrelated surfaces.
+Treat capture infrastructure as evidence-producing code. A screenshot named for a state must show that state, not merely contain its target below the fold. Wait for transitions, derive orientation labels from the rendered canvas, and reject mislabelled captures. If one surface disables a device, orientation, appearance, or accessibility coverage leg globally, require the blocking fix to restore, replace, or explicitly retire that leg.
 
 Use a risk-based surface matrix rather than the full Cartesian product of screens, states, viewports, appearances, languages, and accessibility settings. Each selected case should expose a distinct rule. Pairwise coverage can be a useful minimum where interactions are understood; add targeted combinations for known high-risk interactions. The matrix should still name the unselected combinations, so economy does not become accidental omission.
 
@@ -235,13 +233,13 @@ A task ledger is valuable working memory. Keep inventories, phase status, change
 
 "We decided not to" is not enough. Record why, what would need to change, and what the acceptable implementation should look like if the condition is later met.
 
-A refactor of this kind generates candidate work faster than it completes it: every surface read while fixing one pattern reveals instances of three others. Record them in the ledger as explicitly unapproved, one line each, separated from what was actually done, and do not act on them. The discipline matters more here than elsewhere because each find is genuinely in the same subject area, which makes "while I was in there" unusually persuasive and is exactly how a bounded refactor becomes an open-ended one. An unapproved-findings list that keeps growing is a sign the work is being contained correctly, not a sign it is incomplete.
+Design-system work exposes adjacent issues quickly. Record each out-of-scope finding as unapproved, keep it separate from completed work, and do not act on it. A growing unapproved-findings list shows that the refactor remains bounded; it does not make the approved work incomplete.
 
 Do not let the manual-review ledger become a permanent second backlog. Every entry should name why automation cannot settle it, the cheapest evidence that can, and the destination of any durable conclusion. Promote stable layout, contrast, state, and accessibility invariants into deterministic checks or named capture stories; keep subjective motion quality, hardware-only behaviour, and product judgement manual. Delete an entry only when its replacement evidence exists.
 
 ## Recommended automatically routed skill
 
-Projects undertaking this work should create a focused skill rather than placing the whole failure catalogue in `CLAUDE.md`.
+Create a focused skill for this work rather than putting the full guidance in `CLAUDE.md`.
 
 ```text
 .claude/skills/design-system-refactor/
@@ -281,15 +279,4 @@ description: Use automatically for design-system refactors, theme or token migra
 16. Publish the as-built specification and promote durable decisions.
 ```
 
-The reference files should contain project-specific commands, paths, surface inventories, token semantics, screenshot procedures, and verification thresholds. The skill supplies the stable workflow; the project supplies the current facts.
-
-## Keeping this guidance current
-
-The source case study is a living document. Do not copy every narrative edit into this chapter. Reconcile only new or materially revised transferable conclusions, then update the provenance record below. If a new lesson changes the operational workflow, update the example skill in the same change so discoverability and guidance do not drift apart.
-
-### Provenance
-
-- Living source: [`no-spoilers/FACTORING-A-DESIGN-SYSTEM.md`](https://github.com/npomfret/no-spoilers/blob/main/FACTORING-A-DESIGN-SYSTEM.md)
-- Source commit reviewed: `7b8dbdfddd4b67de6c327d01fe94b4183ba49632`
-- Reconciled: 18 August 2026
-- Second source: a private browser application's theme-factoring task ledger, September 2026, covering about fifty commits and their before-and-after measurements. Contributed the cascade, semantic-element, render-path, side-by-side-revision, and unapproved-findings material. Reconciled: 23 September 2026.
+Reference files should contain repository-specific commands, paths, surface inventories, token semantics, screenshot procedures, and verification thresholds. The skill supplies the workflow; the repository supplies the facts.

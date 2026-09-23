@@ -1,12 +1,12 @@
 # Database Correctness and Scale
 
-Database work deserves explicit protection too. Claude often writes data-layer code as if it were manipulating a toy dataset with no concurrency, no scale, and no integrity requirements. It will forget transactions, under-specify referential rules, casually denormalize data, ignore indexing, and write query shapes that are only acceptable if the system never grows.
+Data-layer conventions must cover concurrency, scale, and integrity. Claude otherwise omits transactions, under-specifies referential rules, denormalizes casually, ignores indexing, and writes unscalable queries.
 
-That default is dangerous because database mistakes are not just style mistakes. They become correctness problems, operational problems, and performance problems.
+Database mistakes affect correctness, operations, and performance.
 
-Denormalization needs special caution. Claude has a strong bias toward duplicating fields into the locally convenient table, document, or cached shape because it makes the current query or screen easier to implement. That is usually the wrong default. Denormalization is a fundamental database design decision, not a local implementation trick. It creates synchronization problems, stale data risks, invalidation complexity, migration complexity, and ambiguity about which copy is authoritative.
+Treat denormalization as a database design decision, not a local implementation shortcut. Duplicating fields into a convenient table, document, or cache creates synchronization, staleness, invalidation, migration, and source-of-truth problems.
 
-Claude should usually be pushed toward keeping derived logic in the API or application-code layer first. Code is several orders of magnitude easier to refactor than a database schema or persisted data model. Moving a calculation, projection, or response-shaping rule between functions is cheap compared with changing stored data, backfilling rows, maintaining dual-write paths, or repairing corrupted historical state. If the only reason to denormalize is that it makes the current implementation look simpler, the design is probably wrong.
+Keep derived logic in the API or application layer by default. Code is much easier to refactor than a schema or persisted data model. Moving a calculation, projection, or response-shaping rule is cheap compared with changing stored data, backfilling rows, maintaining dual writes, or repairing corrupted state. Local implementation convenience does not justify denormalization.
 
 The convention should be explicit: Claude must not introduce denormalized storage, duplicate persisted fields, summary tables, materialized views, cached database columns, or alternate persisted representations of the same fact without asking. If denormalization is genuinely needed for scale, reporting, or query latency, the design should name:
 
@@ -32,7 +32,6 @@ The convention should push Claude to assume the database matters:
 - consider query plans and index selectivity when the data volume could plausibly matter
 - ask about consistency, isolation, migration, scale expectations, and fundamental schema choices when they are not clear from the existing system
 
-The exact answers depend on the stack and workload, so the guide should stay generic. The point is that Claude should not assume it is building a throwaway internal toy unless the project clearly says so. It should be pushed toward transactional correctness, referential integrity, and reasonable performance by default.
+Exact choices depend on the stack and workload. Unless told otherwise, optimize for transactional correctness, referential integrity, and reasonable performance rather than throwaway implementation.
 
-This is another area where "make it work" is not enough. A change that returns the right rows in development can still be wrong if it is not transactionally sound, leaves orphaned data behind, creates conflicting copies of the same fact, misses necessary indexes, or degrades badly under load.
-
+Returning the right rows in development is insufficient if a change lacks transactional soundness, leaves orphaned data, creates conflicting facts, misses indexes, or degrades under load.

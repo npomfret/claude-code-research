@@ -1,8 +1,8 @@
 # Parallel Work
 
-### Subagent parallelism is cheaper than it looks
+### Use subagents for bounded parallel work
 
-Subagents are now background by default. This is useful for parallel investigation, audit, review, and clearly separated implementation tasks because the main agent can continue while they run. A background agent’s permission prompt appears in the main session, and its result remains visible through `/tasks` after completion.
+Subagents run in the background by default, allowing the main agent to continue during parallel investigation, audit, review, or clearly separated implementation. Permission prompts appear in the main session, and completed results remain visible through `/tasks`.
 
 Do not infer more than the product promises: subagents return results to the parent, but they are not a shared live-reasoning team. Give each one a bounded question, a clear ownership boundary, and an expected artifact or conclusion. Reserve nested delegation and dynamic workflows for work that is genuinely decomposable; more agents do not repair an ambiguous task.
 
@@ -32,4 +32,3 @@ Bad candidates:
 - tasks that depend on constant shared reasoning across the same files.
 
 Give each writer a separate checkout and a non-overlapping ownership boundary. Sync long-running branches with the integration branch before their changes diverge substantially.
-

@@ -2,9 +2,9 @@
 
 ## Use Test-First Discipline Deliberately
 
-The guide already argues for aggressive verification. In practice, many teams should go one step further and encode test-first behavior for at least non-trivial feature work and reproducible bug fixes.
+Encode test-first behavior for non-trivial feature work and reproducible bug fixes when the repository uses that workflow.
 
-Test-first work is useful here because it attacks two Claude failure modes at once:
+Test-first work counters two failure modes:
 
 - Claude writes plausible code before it has pinned down observable behavior.
 - Claude declares success too early because the code "looks right."
@@ -17,15 +17,15 @@ If your team uses TDD, write it down as a convention, not a vibe. Be explicit ab
 - refactor: clean up only after green
 - completion: do not claim success without showing the relevant tests passing
 
-Do not claim to use TDD if the repo does not actually work that way. False TDD language is worse than no TDD language because Claude will satisfy the words and miss the real workflow. But when the team does want test-first discipline, Claude should be told exactly what that means.
+Do not claim TDD unless the repository follows it. When test-first discipline applies, define the workflow precisely.
 
 ## Tests Must Make Behaviour Easy to Read
 
 A test is useful only when a reader can quickly identify the meaningful starting state, the action, and the expected result. Where an intermediate state matters, make that verification equally visible. The setup, exercise, and verification phases should be apparent from the semantic operations and spacing in the test; they should not need `Arrange`, `Act`, and `Assert` narration to become understandable.
 
-This matters most in integration, system, and end-to-end tests. Such tests may need substantial machinery to launch the application, seed data, authenticate, navigate, locate controls, construct requests, wait for asynchronous work, observe state, capture diagnostics, and clean up. Those mechanics are necessary, but they are not the behaviour the test is trying to communicate. Hundreds of lines of procedural setup in a test class are evidence of missing test infrastructure, not an unavoidable property of comprehensive testing.
+Integration, system, and end-to-end tests may need machinery to launch the application, seed data, authenticate, navigate, construct requests, synchronize, observe state, capture diagnostics, and clean up. Those mechanics are not the behavior under test. Large procedural test classes indicate missing test infrastructure.
 
-Use **application drivers** as the generic name for abstractions that control and observe the system under test. Depending on the layer and local vocabulary, a project may call them test harnesses, test DSLs, Page Objects, component objects, robots, fixture builders, API test clients, or Screenplay actors and tasks. The name is less important than the ownership boundary:
+Use **application drivers** as the generic name for abstractions that control and observe the system under test. Local names may include test harnesses, test DSLs, Page Objects, component objects, robots, fixture builders, API test clients, or Screenplay actors and tasks. The ownership boundary matters more than the name:
 
 > The test owns the scenario, behaviourally meaningful inputs, actions, and expectations. Drivers own the mechanics required to control and observe the application.
 
@@ -54,13 +54,13 @@ await subscriptions.cancelCurrent();
 await subscriptions.expectCancelled();
 ```
 
-The driver layer owns how accounts are created, how sign-in and navigation work, which controls or endpoints implement cancellation, how readiness is detected, and which diagnostics accompany a failure. The test retains the facts that matter to the scenario: the account plan, the action, the meaningful intermediate state, and the expected outcome.
+Drivers own account creation, sign-in, navigation, implementation controls, readiness detection, and failure diagnostics. The test retains the scenario: account plan, action, meaningful intermediate state, and expected outcome.
 
 Do not extract every literal or create ceremony around a small unit test. The boundary is mechanical application-control knowledge: once that knowledge is non-trivial, repeated, or capable of obscuring the scenario, it does not belong in the test class. The acceptance test for the abstraction is whether a product-aware reader can understand the behaviour without first understanding the test framework or application plumbing.
 
 ## Bug Investigation Is a Sequence of Controlled Experiments
 
-Claude's normal instinct during a difficult investigation is often reasonable: form a conjecture, add instrumentation or a speculative fix, run the reproducer, and inspect what happens. The damaging failure comes after an unsuccessful attempt. Claude frequently leaves that change in place, adds another experiment on top, and eventually reasons from a working tree containing several unsupported ideas. Later observations no longer have a clean baseline, and an apparent fix may depend accidentally on abandoned code.
+During difficult investigations, Claude often leaves failed experiments in place and stacks new ones on top. This destroys the baseline and can make a fix depend on unsupported changes.
 
 Treat every speculative change as a reversible experiment:
 
@@ -74,7 +74,7 @@ Treat every speculative change as a reversible experiment:
 
 Ambiguity is not success. If Claude cannot name the useful evidence an experiment produced, the experiment failed and must be removed. Never stack a new conjecture on top of an unsuccessful one. Reverse only the current experiment; do not use a broad reset or checkout that would discard the user's existing work.
 
-Temporary instrumentation is still temporary even when it helps locate the bug. Remove it when the investigation no longer needs it unless the team deliberately chooses to retain it as supported product instrumentation. The final change should contain the fix and the deliberately selected verification, not the archaeological remains of the search.
+Remove temporary instrumentation when the investigation ends unless it is deliberately retained as supported product instrumentation. The final change should contain only the fix and selected verification.
 
 ## A Bug Reproducer Is Not Automatically a Permanent Test
 
@@ -88,9 +88,9 @@ After the fix, deliberately retain, rewrite, consolidate, or remove the reproduc
 
 Test cost includes execution time, fixture and environment setup, flakiness, maintenance, cognitive load, and unnecessary resistance to legitimate refactoring. A bug having occurred once is evidence about risk, not an automatic claim on permanent suite capacity.
 
-Treat the test suite as maintained code, not append-only history. When working in a test area, refactor, rewrite, consolidate, or remove nearby tests when doing so improves clarity, eliminates redundant or obsolete coverage, reduces unjustified cost, or better expresses the enduring behavioural contract. Keep this cleanup proportionate to the task and preserve coverage whose value still exceeds its cost.
+Treat the test suite as maintained code, not an append-only record. Refactor, rewrite, consolidate, or remove nearby tests when this improves clarity, eliminates redundant or obsolete coverage, reduces unjustified cost, or better expresses the enduring behavioural contract. Keep cleanup proportionate and preserve coverage whose value exceeds its cost.
 
-When removing a reproducer because other tests already protect the behaviour, verify that claim where practical: temporarily reintroduce the faulty behaviour or make an equivalent targeted mutation and confirm that the retained suite fails. This mutation check is strong evidence of redundancy, not a universal rule that every historical bug must retain equivalent coverage forever.
+When other tests make a reproducer redundant, verify the claim where practical: temporarily reintroduce the fault or make an equivalent targeted mutation and confirm that the retained suite fails. This demonstrates redundancy without requiring equivalent coverage for every past bug.
 
 Do not keep a test merely because it helped find a bug, and do not remove it merely because the bug is fixed. Keep the smallest, clearest set of tests whose enduring behavioural and risk-reduction value exceeds their continuing cost.
 
@@ -130,7 +130,7 @@ description: Use automatically when investigating, reproducing, diagnosing, or f
 
 # Bug Investigation
 
-1. Load the applicable subsystem conventions and inspect the relevant code, tests, logs, and recent changes.
+1. Load the applicable subsystem conventions and inspect the relevant code, tests, and logs.
 2. Define the observed failure and the smallest reliable reproducer.
 3. Load the testing conventions and add the smallest practical failing test first when the behaviour is testable. Use or improve the application driver rather than putting non-trivial control mechanics in the test class.
 4. Record the working-tree baseline and preserve pre-existing changes.
@@ -187,7 +187,7 @@ The language should be explicit:
 
 > Never introduce a new dependency, design pattern, abstraction layer, file structure, naming convention, or solution style without explicit approval. If the codebase does not already establish a pattern for the problem, stop, describe the gap, propose options, and wait for a decision.
 
-That is stronger than "prefer existing patterns." It forces Claude to notice conceptual expansion before it happens.
+This forces Claude to notice conceptual expansion before it occurs.
 
 ## Claude Must Load Conventions Before Writing, Not After
 
@@ -212,7 +212,7 @@ When Claude finds a real gap:
 4. Claude updates the convention docs and, if needed, the relevant skill,
 5. then Claude implements against the new standard.
 
-This is the basis of a self-maintaining configuration system. The human owns the conceptual surface area. Claude owns keeping the recorded instructions up to date.
+Humans own the conceptual surface area; Claude maintains the recorded instructions.
 
 ## How to Audit an Existing Codebase for Drift
 
@@ -239,10 +239,10 @@ For each concern:
 5. write the convention down,
 6. then make future work follow it.
 
-For an external integration audit, check more than whether calls are injectable. Provider SDK imports and provider-owned request, response, identifier, and error types should stop at an application-owned adapter. Application tests should substitute the narrow capability without understanding the vendor; focused adapter tests should verify translation, error mapping, and any provider-specific protocol behavior. As a practical acceptance test, estimate the files that would change if the provider were replaced. Broad changes outside the adapter, composition wiring, configuration, and genuinely provider-specific product behavior reveal a leaky boundary.
+An external-integration audit must check more than injection. Provider SDK imports and provider-owned request, response, identifier, and error types should stop at an application-owned adapter. Application tests should substitute the narrow capability; adapter tests should verify translation, error mapping, and provider-specific protocol behavior. Estimate which files a provider replacement would change. Broad changes outside the adapter, composition wiring, configuration, and genuinely provider-specific behavior reveal a leaky boundary.
 
-This is the only reliable way to stop a large existing project from getting worse.
+Focused audits prevent existing drift from becoming the default pattern.
 
-UI audits need special care because Claude is prone to doing a plausible sample pass and then overstating the result. For design-system questions, require category-complete scans before accepting a verdict. The audit should cover containers, boxes, panels, typography, spacing, borders, separators, corners, shadows, surfaces, icons, controls, colours, loading states, empty states, and error states. It should also distinguish four different things that Claude often blends together: raw values, centralised tokens, semantic tokens, and shared components. A value being tokenised is not enough. The token or component name should encode stable intent or domain meaning, not just current appearance. `danger`, `surface-panel`, `separator-subtle`, and `points-high` are semantic. `red`, `box2`, `border-light`, `canvas-2`, and `ink-2` are weaker unless the project has explicitly documented what they mean.
+UI audits require category-complete scans, not samples. Cover containers, panels, typography, spacing, borders, surfaces, icons, controls, colours, and loading, empty, and error states. Distinguish raw values, centralised tokens, semantic tokens, and shared components. Names must encode stable intent: `danger`, `surface-panel`, and `separator-subtle` are semantic; `red`, `box2`, and `border-light` require explicit definitions.
 
 For a full design-system migration, extend this audit into a counted baseline and keep build, behavioural, and visual confidence separate. [Design-System Refactors](design-system-refactors.md) describes how to prove neutral substitutions, establish screenshot noise floors, predict visual diffs, and report uncovered surfaces without overstating completion.
