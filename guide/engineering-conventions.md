@@ -123,7 +123,7 @@ Do not build a one-for-one forwarding wrapper that reproduces every vendor metho
 
 Use the replacement test during design and review:
 
-> If this provider disappeared tomorrow, would the change be concentrated in one adapter, its composition wiring and configuration, plus genuinely provider-specific product behavior?
+> If this provider were replaced, would the change be concentrated in one adapter, its composition wiring and configuration, plus genuinely provider-specific product behavior?
 
 If replacing a provider would require coordinated edits across use cases, domain objects, view models, handlers, or tests, its contract has leaked. Fix leakage in the touched path before adding calls. External contracts are concrete sources of variability, so isolate them before their types and usage patterns spread.
 

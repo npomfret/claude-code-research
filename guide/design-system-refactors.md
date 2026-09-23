@@ -4,6 +4,8 @@ Design-system work is a cross-cutting refactor of visual semantics, shared compo
 
 The operating rules below cover token modelling, component convergence, cascade control, semantic markup, adaptive layout, and rendered verification.
 
+For a read-only assessment that records defects without implementing changes, use [UI and UX Audits](ui-ux-audits.md).
+
 ## Start with a falsifiable outcome
 
 "Introduce a design system" is not a completion criterion. Define the smallest set of one-edit tests that the finished system must pass. For example:

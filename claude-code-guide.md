@@ -46,6 +46,7 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It reaches for tools, MCPs, or browser automation before exhausting code-level investigation if those tools are available.
 - It misses reusable workflow instructions when they are not designed to be automatically discoverable from the user's wording.
 - It answers broad review questions from representative samples, then sounds more comprehensive than the evidence supports.
+- It changes code during an audit, destroying the evidence boundary and bypassing review and prioritisation.
 - It overwhelms the user by presenting every manual check, question, and instruction at once instead of guiding them through the work in manageable stages.
 - It over-explains routine work and buries the outcome in implementation detail, making the user read more than is necessary to act or verify the result.
 - It checks whether values are reused without checking whether names carry stable semantic meaning.
@@ -135,6 +136,7 @@ Detailed guidance lives in focused chapters that can be read, maintained, and re
 - [Context and Routing](guide/context-and-routing.md) — `CLAUDE.md`, rules, skills, memory, and discoverability.
 - [Engineering Conventions](guide/engineering-conventions.md) — type safety, abstractions, encapsulation, replaceable external-service adapters, explicit construction and dependency boundaries, duplication, UI architecture, logging, APIs, exceptions, and formatting.
 - [Design-System Refactors](guide/design-system-refactors.md) — evidence-derived guidance for inventorying, modelling, sequencing, and verifying cross-surface UI-system migrations.
+- [UI and UX Audits](guide/ui-ux-audits.md) — read-only, evidence-backed audits of interface defects, accessibility, runtime behaviour, visual drift, state coverage, and design-system ownership.
 - [Database Correctness and Scale](guide/database.md) — normalization, transactions, constraints, indexes, and safe denormalization decisions.
 - [Testing and Quality](guide/testing-and-quality.md) — readable driver-backed tests, controlled bug investigation, deliberate regression-test retention, TDD, convention design, stop-and-ask rules, and drift audits.
 - [Code Intelligence](guide/code-intelligence.md) — repository search, GitNexus, ast-grep, dependency-cruiser, and Knip.
@@ -153,6 +155,7 @@ If you want a practical default setup, use this:
    - `feature-workflow`
    - `testing-conventions`
    - `bug-investigation`
+   - `ui-ux-audit` where the product has a user interface
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`
 4. Reference documents for detailed conventions, kept outside root `CLAUDE.md` instructions and owned by the rule or skill that uses them.
