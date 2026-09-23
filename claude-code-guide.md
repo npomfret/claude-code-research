@@ -53,6 +53,15 @@ If the setup does not actively counter these, Claude will keep doing them:
 - It checks whether values are reused without checking whether names carry stable semantic meaning.
 - It treats UI code like prototype presentation work instead of durable product architecture with contracts, naming semantics, and long-term maintenance cost.
 - It treats visible styling as "consistent enough" while missing drift across containers, typography, spacing, borders, corners, shadows, icons, and feedback states.
+- It writes a bare numeric or colour literal whenever styling a new element, because the value is locally obvious and no rule made it look for an owner, which is how one border width ends up authored in over a hundred places.
+- When a shared component resists, it overrules the component from outside — a priority flag, an injected class name, a selector reaching into the component's markup — instead of treating the resistance as a missing variant in the component's own API.
+- It reproduces a shared component's appearance by hand rather than finding it, and will even write a comment saying the copy matches the original instead of reading that as proof the copy should not exist.
+- It draws a semantic structure out of generic containers because styling reaches the visual result faster, producing a table, list, or control that only looks like one.
+- It implements the appearance of a known interaction pattern without its keyboard map or state attributes, and calls the component finished.
+- It chooses a colour, spacing value, or token because the rendered result looks right, rather than because the name matches the meaning, which quietly couples two decisions that later need to diverge.
+- It judges text contrast by eye, and reaches for opacity to make text look secondary, which changes contrast against whatever happens to be behind it and is invisible to any token check.
+- During a consolidation it migrates the state it can see and leaves the loading, empty, and error paths of the same component behind.
+- It reports a refactor as visually neutral on the strength of having read the diff, when every defect that class of work produces is one a diff cannot show.
 
 The rest of this guide exists to suppress those failure modes structurally rather than hoping Claude behaves better on its own.
 
