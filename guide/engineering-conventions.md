@@ -171,6 +171,23 @@ UI contracts include semantics, accessibility, responsive behaviour, and all int
 
 **Don't:** split files mechanically, accumulate unrelated UI responsibilities in one file, or recreate an existing primitive's appearance locally.
 
+## UI copy, icons, and headings
+
+Claude's biggest UI writing weakness is word choice: literal, awkward, abstract, or technical words where a person expects natural language. Short, accurate text can still be a poor label; it often describes the mechanism instead of what the action means to the user.
+
+**Do:**
+
+- Write from the user's task and vocabulary: what they want to do, what will happen, and what they need to decide. Internal names are not product copy.
+- Prefer familiar, concrete words ("Edit", "Share", "Sign out", "Refresh") over formal or implementation-derived ones ("Modify entry", "Configure access permissions", "Terminate session", "Invalidate cache").
+- Label actions with concise verbs and, where needed, their object; use one name per concept across the product.
+- Describe status as user progress and outcome ("Preparing your report…", "Couldn't upload the file. Try again."); wording must match actual behaviour, such as queued versus done.
+- Choose deliberately between text, icon, and both; use a familiar icon from the product's set for established actions, and give icon-only controls an accessible name.
+- Review copy in the rendered screen, including loading, empty, and error states, as part of the UI conventions or implementation skill rather than an optional polish pass.
+
+**Don't:** surface internal operations or diagnostics as labels, rely on a tooltip to rescue an incomprehensible control, or add headings such as "Actions" or "Details" that repeat what the layout or content already makes obvious. Keep meaningful semantic heading structure and necessary instructions.
+
+See [UI and UX Audits](ui-ux-audits.md#copy-icons-and-information-hierarchy) for reviewing existing interfaces.
+
 ## Semantic tokens and site-wide constants
 
 Names encode meaning; values implement it. Separate roles may share a value today and diverge later.

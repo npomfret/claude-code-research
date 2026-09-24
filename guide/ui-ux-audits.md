@@ -67,6 +67,21 @@ Use the product's chosen accessibility standard and conformance level. Apply [no
 - Text available only through images, icons, tooltips, or CSS-generated content.
 - Testable business/formatting logic outside templates and rules duplicated across boundaries.
 
+## Copy, icons, and information hierarchy
+
+Read labels, buttons, headings, help text, and status messages in rendered context against the [UI copy conventions](engineering-conventions.md#ui-copy-icons-and-headings).
+
+**Do inspect:**
+
+- Poor word choice first: awkward, formal, abstract, or unfamiliar terms where natural task language would be clearer, even when concise and accurate.
+- Internal operation names or implementation details that make users infer the action or outcome.
+- Labels that misrepresent what happens, such as implying completion when work is only queued.
+- Inconsistent names for the same concept.
+- Text-heavy controls where an established icon would be clearer, and icon-only controls that are ambiguous or lack an accessible name.
+- Redundant subheadings that repeat nearby content or fragment a simple task.
+
+Record the exact wording, context, audience, and consequence, and what an alternative would clarify. Distinguish demonstrated confusion, misleading feedback, or a convention violation from an editorial preference.
+
 ## Validate and triage
 
 Before reporting a defect, reproduce it or prove why a rule cannot take effect, confirm reachable state and applicable ownership/specification, quantify it where possible, and state fix visibility. Label unresolved reachability as risk and seek independent review when classification is contested.
@@ -102,7 +117,8 @@ description: Use for read-only UI/UX audits, accessibility reviews, visual drift
 1. Define scope, exclusions, output, and accessibility standard.
 2. Count routes, states, shared owners, values, duplicates, and escapes.
 3. Exercise in-scope runtime paths and capture reproducible evidence.
-4. Validate reachability, consequence, semantics, and fix visibility.
-5. Separate defects, risks, preferences, and cleared concerns.
-6. Report impact-ordered findings, counts, method, and bounded coverage.
+4. Verify states, semantics, localisation, copy, icon choices, and heading usefulness.
+5. Validate reachability, consequence, semantics, and fix visibility.
+6. Separate defects, risks, preferences, and cleared concerns.
+7. Report impact-ordered findings, counts, method, and bounded coverage.
 ```

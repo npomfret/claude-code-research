@@ -31,6 +31,7 @@ In particular, forbid catch-and-carry-on, sloppy logging, speculative fallbacks,
 - Use tools merely because they are available, or substitute a sample for a comprehensive audit.
 - Change code during a read-only audit or retain unsupported debugging experiments.
 - Claim behavioural or visual correctness from a clean build alone.
+- Label UI with literal, awkward, or implementation-derived words where a person would use natural task language, or add text and subheadings where a familiar icon or the layout already communicates.
 
 ## Relevant Claude Code Capabilities
 
