@@ -68,7 +68,7 @@ The following practices address these failure modes structurally.
 
 Persistence and parallel-work features require clear repository boundaries:
 
-- **Auto memory is enabled by default.** It stores Claude's repository learnings separately from team-authored `CLAUDE.md` instructions. Use `/memory` to inspect or disable it; keep team policy in version-controlled instructions.
+- **Auto memory is enabled by default.** It stores Claude's repository learnings separately from team-authored `AGENTS.md` instructions. Use `/memory` to inspect or disable it; keep team policy in version-controlled instructions.
 - **Subagents run in the background by default, and forked subagents inherit the full conversation and prompt cache by default.** Permission prompts surface in the main session, and completed tasks remain visible in `/tasks`. Forks have task context but no shared live working memory; give parallel agents bounded outputs and explicit ownership.
 - **Nested delegation and dynamic workflows have limits.** Subagents nest to three layers by default. A session defaults to 200 total subagent spawns and 20 concurrent agents; dynamic workflows advise fewer than 15 agents. Reserve these tools for genuinely decomposable work.
 - **Auto mode is a permission posture, not a project setting.** Select it through user, managed, or CLI settings; checked-in project settings cannot enable it. Its prose-based safety policy complements deterministic deny rules and sandboxing but does not replace them.
@@ -123,24 +123,24 @@ Claude should propose a cleaner, larger change when justified. It should identif
 
 ### Context rots, and naive configuration makes it worse
 
-Anthropic's [Memory](https://code.claude.com/docs/en/memory) and [Best Practices](https://code.claude.com/docs/en/best-practices) guidance recommends concise, specific project memory. Do not put every instruction in `CLAUDE.md`: it is always-on context, so unnecessary content consumes task budget.
+Anthropic's [Memory](https://code.claude.com/docs/en/memory) and [Best Practices](https://code.claude.com/docs/en/best-practices) guidance recommends concise, specific project memory. Do not put every instruction in `AGENTS.md`: it is always-on context, so unnecessary content consumes task budget.
 
-Institutional memory matters, but root `CLAUDE.md` is not the place to store all of it. Long-lived projects need discoverable, on-demand context instead.
+Institutional memory matters, but root `AGENTS.md` is not the place to store all of it. Long-lived projects need discoverable, on-demand context instead.
 
-Root `CLAUDE.md` is for non-obvious commands, repository-wide verification expectations, architectural decisions, conventions, repository etiquette, approval boundaries, and dangerous or generated areas. Include an item only when omitting it would predictably reduce reliability. Do not use the file to index `.claude/`; scoped configuration must be discoverable through metadata, path scope, placement, and reference ownership.
+Root `AGENTS.md` is for non-obvious commands, repository-wide verification expectations, architectural decisions, conventions, repository etiquette, approval boundaries, and dangerous or generated areas. Include an item only when omitting it would predictably reduce reliability. Do not use the file to index `.claude/`; scoped configuration must be discoverable through metadata, path scope, placement, and reference ownership.
 
 ## Guide Map
 
 Detailed guidance lives in focused chapters that can be read, maintained, and reused independently.
 
-- [Context and Routing](guide/context-and-routing.md) — `CLAUDE.md`, rules, skills, memory, and discoverability.
+- [Context and Routing](guide/context-and-routing.md) — `AGENTS.md (was CLAUDE.md)`, rules, skills, memory, and discoverability.
 - [Engineering Conventions](guide/engineering-conventions.md) — type safety, abstractions, encapsulation, replaceable external-service adapters, explicit construction and dependency boundaries, duplication, UI architecture, logging, APIs, exceptions, and formatting.
 - [Design-System Refactors](guide/design-system-refactors.md) — evidence-derived guidance for inventorying, modelling, sequencing, and verifying cross-surface UI-system migrations.
 - [UI and UX Audits](guide/ui-ux-audits.md) — read-only, evidence-backed audits of interface defects, accessibility, runtime behaviour, visual drift, state coverage, and design-system ownership.
 - [Database Correctness and Scale](guide/database.md) — normalization, transactions, constraints, indexes, and safe denormalization decisions.
 - [Testing and Quality](guide/testing-and-quality.md) — readable driver-backed tests, controlled bug investigation, deliberate regression-test retention, TDD, convention design, stop-and-ask rules, and drift audits.
 - [Code Intelligence](guide/code-intelligence.md) — repository search, GitNexus, ast-grep, dependency-cruiser, and Knip.
-- [Workflows and Configuration Maintenance](guide/workflows-and-maintenance.md) — audit → refactor → implement → verify, progressive validation, and keeping Claude configuration current.
+- [Workflows and Configuration Maintenance](guide/workflows-and-maintenance.md) — audit → refactor → implement → verify, Git policy, progressive validation, and keeping Claude configuration current.
 - [Integrations, Hooks, and Permissions](guide/integrations-and-permissions.md) — MCP strategy, hooks, settings, sandboxing, and permission posture.
 - [Parallel Work](guide/parallel-work.md) — subagents, worktrees, ownership, and merge avoidance.
 
@@ -148,7 +148,7 @@ Detailed guidance lives in focused chapters that can be read, maintained, and re
 
 If you want a practical default setup, use this:
 
-1. A short root `CLAUDE.md` containing only crucial repository-wide facts and instructions; scoped Claude configuration must be independently discoverable rather than indexed from this file.
+1. A short root `AGENTS.md` containing only crucial repository-wide facts and instructions; scoped Claude configuration must be independently discoverable rather than indexed from this file.
 2. A small rules set for always-on global and path-scoped standing instructions.
 3. A small skill set:
    - `conventions-global`
@@ -158,7 +158,7 @@ If you want a practical default setup, use this:
    - `ui-ux-audit` where the product has a user interface
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`
-4. Reference documents for detailed conventions, kept outside root `CLAUDE.md` instructions and owned by the rule or skill that uses them.
+4. Reference documents for detailed conventions, kept outside root `AGENTS.md` instructions and owned by the rule or skill that uses them.
 5. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
 6. `settings.json` for allow/deny behavior and permission posture.
 7. Compiler, language-server, test, and repository-search commands as the first code-investigation layer.
@@ -190,7 +190,7 @@ Use official documentation to verify Claude Code capabilities. Use each code too
 
 ### Further Reading
 
-- [On the Use of Agentic Coding Manifests](https://arxiv.org/abs/2509.14744) — an empirical study of 253 public `Claude.md` files, useful for distinguishing common content patterns from isolated template advice.
+- [On the Use of Agentic Coding Manifests](https://arxiv.org/abs/2509.14744) — an empirical study of 253 public `AGENTS.md` files, useful for distinguishing common content patterns from isolated template advice.
 - [Agent READMEs](https://arxiv.org/abs/2511.12884) — a broader empirical study of repository-level agent context files and the instructions developers prioritize in practice.
 - [GitNexus](https://github.com/nxpatterns/gitnexus) — a repository-intelligence and code-graph tool for exploring dependencies, execution flows, symbols, and the likely blast radius of a change.
 - [ast-grep](https://github.com/ast-grep/ast-grep) — a structural search, linting, and codemod tool that matches syntax trees rather than relying on fragile text patterns.

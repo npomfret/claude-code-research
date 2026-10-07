@@ -1,8 +1,8 @@
 # Context and Routing
 
-### What `CLAUDE.md` is for
+### What `AGENTS.md` is for
 
-`CLAUDE.md` is the repository-wide operating contract. The official docs support using `/init` to create it and keeping it concise and repo-specific. Every item in it should be crucial: information Claude cannot reliably infer or instructions that apply broadly enough to justify loading for every task.
+`AGENTS.md` is the repository-wide operating contract. The official docs support using `/init` to create it and keeping it concise and repo-specific. Every item in it should be crucial: information Claude cannot reliably infer or instructions that apply broadly enough to justify loading for every task.
 
 The strongest recurring content categories are:
 
@@ -25,7 +25,7 @@ It should not contain:
 - an index of files under `.claude/`,
 - or every lesson ever learned.
 
-`CLAUDE.md` is an operating contract. It is not a knowledge base or a directory of Claude configuration. Skills, rules, agents, and their supporting references should make themselves discoverable through their native metadata, scope, and ownership.
+`AGENTS.md` is an operating contract. It is not a knowledge base or a directory of Claude configuration. Skills, rules, agents, and their supporting references should make themselves discoverable through their native metadata, scope, and ownership.
 
 ### What belongs in the root file
 
@@ -41,9 +41,9 @@ The root file should answer these questions immediately:
 
 If content is only relevant to one subsystem, it should live in a subsystem-specific skill, path-scoped rule, or local reference owned by one of those mechanisms. If content is long enough that you would not want to read it before every task yourself, it does not belong in the root file either. If content needs mechanical enforcement, it belongs in tooling or hooks, not prose.
 
-The common "keep adding rules to `CLAUDE.md` whenever Claude makes a mistake" advice is only partially right. Add an instruction only when it is crucial and broadly applicable. Move scoped, procedural, or nuanced guidance into the mechanism that can express when it applies. Otherwise you solve one mistake by creating a broader context-quality problem.
+The common "keep adding rules to `AGENTS.md` whenever Claude makes a mistake" advice is only partially right. Add an instruction only when it is crucial and broadly applicable. Move scoped, procedural, or nuanced guidance into the mechanism that can express when it applies. Otherwise you solve one mistake by creating a broader context-quality problem.
 
-Do not create an artificial priority tier inside the file. A heading such as "Non-Negotiables" implies that the remaining content matters less. Everything in `CLAUDE.md` should earn the same scarce, always-on attention. When an instruction genuinely allows discretion or has exceptions, state that scope and nuance explicitly beside it.
+Do not create an artificial priority tier inside the file. A heading such as "Non-Negotiables" implies that the remaining content matters less. Everything in `AGENTS.md` should earn the same scarce, always-on attention. When an instruction genuinely allows discretion or has exceptions, state that scope and nuance explicitly beside it.
 
 ### Recommended root structure
 
@@ -95,15 +95,15 @@ Surface material trade-offs, failed verification, blockers, and decisions requir
 
 ### Keep the root file short on purpose
 
-The official [Memory](https://code.claude.com/docs/en/memory) guidance targets fewer than 200 lines per `CLAUDE.md`. Child files are appropriate only when a subtree genuinely works differently. Path-scoped rules reduce startup context; splitting content into `@path` imports only reorganizes it because imports still load with the parent file.
+The official [Memory](https://code.claude.com/docs/en/memory) guidance targets fewer than 200 lines per `AGENTS.md`. Child files are appropriate only when a subtree genuinely works differently. Path-scoped rules reduce startup context; splitting content into `@path` imports only reorganizes it because imports still load with the parent file.
 
-Anthropic's [Best Practices](https://code.claude.com/docs/en/best-practices) includes non-obvious commands, testing instructions, repository etiquette, architectural decisions, and code-style differences while excluding inferable facts, standard conventions, volatile information, and tutorials. An [empirical study of public `Claude.md` files](https://arxiv.org/abs/2509.14744) found the same focus. Together, these sources support a narrow content model.
+Anthropic's [Best Practices](https://code.claude.com/docs/en/best-practices) includes non-obvious commands, testing instructions, repository etiquette, architectural decisions, and code-style differences while excluding inferable facts, standard conventions, volatile information, and tutorials. An [empirical study of public `AGENTS.md` files](https://arxiv.org/abs/2509.14744) found the same focus. Together, these sources support a narrow content model.
 
 ### Context and content stability
 
-Keep root `CLAUDE.md` stable because every session loads it. Put durable, always-relevant instructions there; put multi-step or local guidance in skills or path-scoped rules; put transient task state in the conversation, issue, or plan. Claude re-reads project-root `CLAUDE.md` after `/compact` and reloads nested files when it reads in that subtree. Use `/context` to confirm loaded memory files, `/memory` to inspect auto memory, and `/doctor` to identify a root file that needs trimming.
+Keep root `AGENTS.md` stable because every session loads it. Put durable, always-relevant instructions there; put multi-step or local guidance in skills or path-scoped rules; put transient task state in the conversation, issue, or plan. Claude re-reads project-root `AGENTS.md` after `/compact` and reloads nested files when it reads in that subtree. Use `/context` to confirm loaded memory files, `/memory` to inspect auto memory, and `/doctor` to identify a root file that needs trimming.
 
-`.claude/rules/` supports modular always-on or path-scoped instructions. Use it alongside root `CLAUDE.md`, skills, hooks, settings, and reference files; do not treat it as the whole system. Each instruction must live in the correct layer and load when needed.
+`.claude/rules/` supports modular always-on or path-scoped instructions. Use it alongside root `AGENTS.md`, skills, hooks, settings, and reference files; do not treat it as the whole system. Each instruction must live in the correct layer and load when needed.
 
 ## Skills and Rules Architecture
 
@@ -111,7 +111,7 @@ Keep root `CLAUDE.md` stable because every session loads it. Put durable, always
 
 The word "rules" is often used too loosely. For a long-lived project, separate the layers:
 
-- `CLAUDE.md`: always-on repository operating contract.
+- `AGENTS.md`: always-on repository operating contract.
 - `.claude/rules/`: persistent always-on or path-scoped standing instructions.
 - Skills: reusable, on-demand workflows and scoped instruction packages.
 - Reference files: detailed conventions, subsystem notes, and examples used by skills.
@@ -144,7 +144,7 @@ Bad skill categories:
 - giant grab-bag "backend skill",
 - vague "good coding practices",
 - one-off project notes that are never reused,
-- crucial repository-wide instructions that should live in root `CLAUDE.md` instead.
+- crucial repository-wide instructions that should live in root `AGENTS.md` instead.
 
 ### Recommended repository layout
 
@@ -191,9 +191,9 @@ That means common workflows must be designed so Claude can discover and route to
 
 The stronger target is zero ritual. The user describes the desired outcome; Claude identifies the task and touched subsystem, loads the applicable rules and skills, follows their references, and performs the work. Users may invoke a skill explicitly when they want to, but routine correctness must not depend on them knowing the configuration. If the user repeatedly has to say "use the UI skill" or "check the database rules," treat that as a routing defect in the skill description, rule scope, naming, or ownership of its supporting references.
 
-This needs to be stated plainly: if you want Claude to use any part of the Claude-side file surface unprompted, it is not enough for those files to merely exist somewhere in the repository. Each mechanism must be discoverable in its native way: skills through precise metadata, rules and local `CLAUDE.md` files through appropriate scope, agents through clear descriptions, and reference documents through the skill or rule that owns them. Orphaned markdown is not a discoverability strategy.
+This needs to be stated plainly: if you want Claude to use any part of the Claude-side file surface unprompted, it is not enough for those files to merely exist somewhere in the repository. Each mechanism must be discoverable in its native way: skills through precise metadata, rules and local `AGENTS.md` files through appropriate scope, agents through clear descriptions, and reference documents through the skill or rule that owns them. Orphaned markdown is not a discoverability strategy.
 
-Do not compensate for weak `.claude/` configuration by listing or linking it from root `CLAUDE.md`. That hides the defect while spending context on every task. Fix the skill metadata, rule scope, agent description, directory placement, or reference ownership so normal task wording and touched paths lead Claude to the right material directly.
+Do not compensate for weak `.claude/` configuration by listing or linking it from root `AGENTS.md`. That hides the defect while spending context on every task. Fix the skill metadata, rule scope, agent description, directory placement, or reference ownership so normal task wording and touched paths lead Claude to the right material directly.
 
 Rules are discoverable through always-on or path scope. They expose standing guidance without requiring user invocation.
 
@@ -267,7 +267,7 @@ Skill frontmatter supports this distinction through `disable-model-invocation` a
 
 A rule is a load-bearing instruction with a clear home, not an arbitrary markdown file:
 
-- Root rule in `CLAUDE.md`:
+- Root rule in `AGENTS.md`:
   - "Never introduce a new dependency or abstraction without explicit approval."
 - Path-scoped standing rule in `.claude/rules/`:
   - "In `<subsystem path>`, use the shared error translation pattern and do not invent local response shapes."

@@ -43,7 +43,7 @@ Use it as an index, not an oracle. Static call graphs have blind spots around re
 
 There are two operational cautions:
 
-- `gitnexus analyze` can install skills, register hooks, and write context into `CLAUDE.md` or `AGENTS.md`. Review those changes instead of accepting generated repository instructions blindly. Prefer a narrow or read-only integration when graph queries are all you need.
+- `gitnexus analyze` can install skills, register hooks, and write context into `AGENTS.md` or `AGENTS.md`. Review those changes instead of accepting generated repository instructions blindly. Prefer a narrow or read-only integration when graph queries are all you need.
 - GitNexus uses the PolyForm Noncommercial 1.0.0 license. Personal and other qualifying noncommercial use is permitted; commercial teams must review the license or obtain appropriate terms before adoption.
 
 ### ast-grep for structural search and codemods
@@ -57,7 +57,7 @@ Good uses include:
 - building a one-off, reviewable codemod;
 - and turning a recurring structural convention into a checked rule.
 
-Start with search-only output, inspect representative matches and edge cases, then run rewrites on a clean branch and review the diff. AST matching is more precise than regex, but a syntactic match is not proof of equivalent runtime semantics.
+Start with search-only output, inspect representative matches and edge cases, then run rewrites in a clean working tree and review the diff. Follow the repository's [Git workflow](workflows-and-maintenance.md#git-workflow) when choosing a branch or isolated worktree. AST matching is more precise than regex, but a syntactic match is not proof of equivalent runtime semantics.
 
 ### dependency-cruiser for executable architecture
 

@@ -241,7 +241,7 @@ Do not let the manual-review ledger become a permanent second backlog. Every ent
 
 ## Recommended automatically routed skill
 
-Create a focused skill for this work rather than putting the full guidance in `CLAUDE.md`.
+Create a focused skill for this work rather than putting the full guidance in `AGENTS.md`.
 
 ```text
 .claude/skills/design-system-refactor/

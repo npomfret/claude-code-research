@@ -31,4 +31,4 @@ Bad candidates:
 - small changes that would finish before synchronization overhead pays off,
 - tasks that depend on constant shared reasoning across the same files.
 
-Give each writer a separate checkout and a non-overlapping ownership boundary. Sync long-running branches with the integration branch before their changes diverge substantially.
+Give each writer a separate checkout and a non-overlapping ownership boundary. Follow the [Git workflow](workflows-and-maintenance.md#git-workflow): work on `main` by default, use temporary worktree branches when isolation is needed, and regularly rebase long-running work onto current `main`. Integrate completed work without merge commits.

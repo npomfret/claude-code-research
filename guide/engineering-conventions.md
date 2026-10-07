@@ -127,7 +127,7 @@ Use the replacement test during design and review:
 
 If replacing a provider would require coordinated edits across use cases, domain objects, view models, handlers, or tests, its contract has leaked. Fix leakage in the touched path before adding calls. External contracts are concrete sources of variability, so isolate them before their types and usage patterns spread.
 
-General advice about "good architecture" is insufficient. Put a concise repository-wide rule in root `CLAUDE.md`, detailed guidance in a discoverable convention, and integration-leakage checks in the feature workflow. Where possible, enforce import boundaries so vendor packages appear only in adapters and composition code. Review the application-owned contract and replacement boundary, not merely whether the client was injected.
+General advice about "good architecture" is insufficient. Put a concise repository-wide rule in root `AGENTS.md`, detailed guidance in a discoverable convention, and integration-leakage checks in the feature workflow. Where possible, enforce import boundaries so vendor packages appear only in adapters and composition code. Review the application-owned contract and replacement boundary, not merely whether the client was injected.
 
 #### Construct at the Edges; Pass Capabilities Inward
 
@@ -200,7 +200,7 @@ This structure makes unit testability a design property rather than a testing tr
 - Does production wiring live in an obvious construction boundary that can be inspected separately?
 - Would a reader know the unit's required capabilities from its public API rather than searching its method bodies?
 
-Load this convention automatically. Put only its crucial repository-wide rule in root `CLAUDE.md`; otherwise scope it to relevant files or tasks and expose the detail through the owning rule or skill. Require workflows to inspect touched code for hidden construction and I/O. Enforce dependency direction with architecture tests or import rules where possible. Tests should construct units directly with explicit fakes; awkward construction is evidence that the boundary needs improvement.
+Load this convention automatically. Put only its crucial repository-wide rule in root `AGENTS.md`; otherwise scope it to relevant files or tasks and expose the detail through the owning rule or skill. Require workflows to inspect touched code for hidden construction and I/O. Enforce dependency direction with architecture tests or import rules where possible. Tests should construct units directly with explicit fakes; awkward construction is evidence that the boundary needs improvement.
 
 See [Growing Object-Oriented Software, Guided by Tests](https://growing-object-oriented-software.com/) for the testability pressure behind this design, Mark Seemann's Composition Root for the assembly boundary, and Martin Fowler on [separating service configuration from use](https://martinfowler.com/articles/injection.html#SeparatingConfigurationFromUse).
 

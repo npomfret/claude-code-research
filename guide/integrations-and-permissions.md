@@ -111,7 +111,7 @@ Recommended policy:
 - put personal convenience allows in `.claude/settings.local.json` or `~/.claude/settings.json`, not in a committed repository file;
 - use sandbox filesystem, network, and credential restrictions when isolation matters, because they apply at the subprocess boundary;
 - use a `PreToolUse` or `PermissionRequest` hook only for narrow, deterministic policy or workflow handling; and
-- use `CLAUDE.md`, skills, tests, and review for behavior that cannot be expressed as a deterministic access rule.
+- use `AGENTS.md`, skills, tests, and review for behavior that cannot be expressed as a deterministic access rule.
 
 Auto mode can allow routine work while escalating risky actions in personal or managed environments. A repository cannot opt a user into it: project and local settings ignore `auto` and its prose-based `autoMode` policy. Keep hard prohibitions in deny rules or sandbox policy; the classifier is a convenience layer, not an authorization model.
 

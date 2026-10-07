@@ -181,7 +181,7 @@ This format is strict for a reason. Claude needs to know:
 
 ## The "Stop and Ask" Rule
 
-Give this rule one authoritative home at the broadest scope where it is genuinely required. If it applies to every task in the repository, it earns a place in root `CLAUDE.md`. If it applies only to a task type or subsystem, put it in the corresponding skill or path-scoped rule. Do not duplicate it across root instructions, skills, and convention files merely for emphasis; duplicated policy drifts and obscures which version is authoritative.
+Give this rule one authoritative home at the broadest scope where it is genuinely required. If it applies to every task in the repository, it earns a place in root `AGENTS.md`. If it applies only to a task type or subsystem, put it in the corresponding skill or path-scoped rule. Do not duplicate it across root instructions, skills, and convention files merely for emphasis; duplicated policy drifts and obscures which version is authoritative.
 
 The language should be explicit:
 
@@ -191,7 +191,7 @@ This forces Claude to notice conceptual expansion before it occurs.
 
 ## Claude Must Load Conventions Before Writing, Not After
 
-A convention system only works if the applicable guidance loads before Claude edits. Make that happen through precise skill descriptions, path-scoped rules, local scope, and references owned by the mechanism that uses them. Requiring root `CLAUDE.md` to enumerate or locate conventions conceals routing defects in the configuration.
+A convention system only works if the applicable guidance loads before Claude edits. Make that happen through precise skill descriptions, path-scoped rules, local scope, and references owned by the mechanism that uses them. Requiring root `AGENTS.md` to enumerate or locate conventions conceals routing defects in the configuration.
 
 The correct sequence is:
 

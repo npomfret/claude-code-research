@@ -188,7 +188,7 @@ Do not claim a complete audit from sampled files, routes, states, or viewports. 
 
 ## Recommended automatically routed skill
 
-Package this workflow as a focused, model-invocable skill rather than placing it in root `CLAUDE.md`.
+Package this workflow as a focused, model-invocable skill rather than placing it in root `AGENTS.md`.
 
 ```md
 ---

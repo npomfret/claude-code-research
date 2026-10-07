@@ -83,11 +83,23 @@ A good interaction looks like this:
 
 This shows the scope without overwhelming the user. Keep a short progress record when checks are independent. Provide the full checklist up front only when requested or needed for delegation or independent execution.
 
+### Git workflow
+
+Make the repository's Git policy explicit in root `AGENTS.md` or an always-loaded rule:
+
+- **Work on `main` by default.** Use another branch only when explicitly instructed, or when a temporary branch is needed for worktree isolation as described below.
+- **Commit little and often.** Commit small, coherent changes after the relevant verification passes. Stage only files or hunks belonging to the task; leave unrelated user work alone.
+- **Rebase; never merge.** Use `git pull --rebase` to synchronize with the tracked upstream. Do not use `git merge` or create merge commits.
+- **Synchronize regularly.** Pull with rebase before starting, at sensible checkpoints during longer tasks, and before handing off completed work. First inspect the working tree and preserve uncommitted work; do not discard changes to make a pull succeed.
+- **Use worktrees when conflicts are expected or likely.** Isolate concurrent writers or overlapping work in separate worktrees with explicit ownership. A temporary branch is permitted for this isolation; rebase it onto current `main` and integrate the result without a merge commit.
+
+Rebase local, unpublished commits. Do not rewrite shared published history or force-push without explicit authorization. After resolving conflicts, inspect the result and rerun the affected checks.
+
 ## Configuration Maintenance
 
 ### The configuration system should evolve with the codebase
 
-Claude should maintain `CLAUDE.md`, skills, agent definitions, and convention files as part of normal development.
+Claude should maintain `AGENTS.md`, skills, agent definitions, and convention files as part of normal development.
 
 When Claude finds a recurring failure, missing convention, broken discovery path, or unclear workflow, it should propose or make the smallest approved configuration improvement.
 
@@ -133,7 +145,7 @@ user-invocable: true
 
 # Config Maintenance
 
-1. Identify which instruction surface owns the guidance: root `CLAUDE.md`, rule, skill, agent definition, or supporting reference.
+1. Identify which instruction surface owns the guidance: root `AGENTS.md`, rule, skill, agent definition, or supporting reference.
 2. If the issue is workflow routing, also check whether an agent definition or skill description should be updated.
 3. Confirm whether the change is documentation-only or a policy change.
 4. If it is a policy change, stop and ask for approval.
@@ -146,7 +158,7 @@ This maintains configuration without turning every task into documentation work.
 
 ### Version-control the config with the code
 
-Do not treat Claude config as personal local clutter if the project is team-owned. Project-level skills, agent definitions, conventions, and root `CLAUDE.md` instructions belong in version control so the codebase and the agent instructions evolve together.
+Do not treat Claude config as personal local clutter if the project is team-owned. Project-level skills, agent definitions, conventions, and root `AGENTS.md` instructions belong in version control so the codebase and the agent instructions evolve together.
 
 Benefits:
 
