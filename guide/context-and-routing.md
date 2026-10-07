@@ -1,154 +1,95 @@
 # Context and Routing
 
-### What `AGENTS.md` is for
+Instructions work when Claude encounters the right guidance before acting. Keep the repository contract concise, route local knowledge on demand, and put deterministic enforcement in tooling.
 
-`AGENTS.md` is the repository-wide operating contract. The official docs support using `/init` to create it and keeping it concise and repo-specific. Every item in it should be crucial: information Claude cannot reliably infer or instructions that apply broadly enough to justify loading for every task.
+## Root `AGENTS.md`
 
-The strongest recurring content categories are:
+Include only crucial repository-wide instructions or facts Claude cannot reliably infer. Use `/init` as a starting point and review the result.
 
-- exact build, run, test, lint, typecheck, and formatting commands that are not obvious from the repository,
-- repository-wide testing and verification expectations,
-- project-specific architectural decisions, boundaries, and invariants,
-- project-specific conventions that differ from the language or framework defaults,
-- repository etiquette and approval boundaries that apply across task types,
-- and dangerous or generated areas.
+**Do include:**
 
-These are candidates, not required template sections. Include an item only when omitting it would predictably make Claude less reliable. A short statement of the project's purpose can also be worthwhile when that purpose materially changes engineering decisions and is not already obvious from the repository; otherwise it is orientation prose competing with instructions.
+- Only important and non-obvious build, run, test, lint, typecheck, and format commands.
+- Repository-wide completion checks, workflow, Git etiquette, and approval boundaries.
+- Project-specific architecture, invariants, and departures from standard conventions.
+- Dangerous or generated areas.
+- Project purpose only when it materially changes engineering decisions.
+- Links to documentation.
 
-It should not contain:
+**Don't include:**
 
-- exhaustive coding conventions,
-- long domain documentation,
-- troubleshooting playbooks,
-- tool manuals,
-- migration procedures,
-- an index of files under `.claude/`,
-- or every lesson ever learned.
+- Exhaustive conventions, domain documentation, tool manuals, or playbooks.
+- Local procedures, transient task state, or every past lesson.
+- An index of `.claude/` files to compensate for poor routing.
+- Artificial priority tiers such as “Non-Negotiables”; every retained instruction should earn its always-on attention.
 
-`AGENTS.md` is an operating contract. It is not a knowledge base or a directory of Claude configuration. Skills, rules, agents, and their supporting references should make themselves discoverable through their native metadata, scope, and ownership.
+Keep exceptions beside the instruction they qualify. Put subtree-specific guidance in local skills or path-scoped rules, and mechanically enforce what can be checked.
 
-### What belongs in the root file
+### Example root template
 
-The root file should answer these questions immediately:
-
-- What must Claude never do without asking?
-- What is the default workflow for non-trivial changes?
-- Which commands define "done"?
-- Which project-specific decisions or conventions would Claude otherwise miss?
-- Which areas of the repo are dangerous or generated?
-
-### What does not belong
-
-If content is only relevant to one subsystem, it should live in a subsystem-specific skill, path-scoped rule, or local reference owned by one of those mechanisms. If content is long enough that you would not want to read it before every task yourself, it does not belong in the root file either. If content needs mechanical enforcement, it belongs in tooling or hooks, not prose.
-
-The common "keep adding rules to `AGENTS.md` whenever Claude makes a mistake" advice is only partially right. Add an instruction only when it is crucial and broadly applicable. Move scoped, procedural, or nuanced guidance into the mechanism that can express when it applies. Otherwise you solve one mistake by creating a broader context-quality problem.
-
-Do not create an artificial priority tier inside the file. A heading such as "Non-Negotiables" implies that the remaining content matters less. Everything in `AGENTS.md` should earn the same scarce, always-on attention. When an instruction genuinely allows discretion or has exceptions, state that scope and nuance explicitly beside it.
-
-### Recommended root structure
-
-Use this model:
+**Example:** adapt the sections, commands, and policy choices to the repository. This is not a required checklist or a ready-to-install configuration.
 
 ```md
 # Repo Operating Rules
 
-## Operating Instructions
-- Before any non-trivial feature or bugfix:
-  1. audit the existing code paths, abstractions, and conventions
-  2. ask: "If I were starting from scratch, knowing what I know now, what is the best approach?"
-  3. assume the area is not ready; refactor, extract, and encapsulate until it is a clean host for the change
-  4. present the ideal solution first, even when it is larger or harder; label any lower-effort alternative and its debt explicitly
-  5. explain the plan before broad or risky edits
-- Never introduce a new dependency, pattern, abstraction, file layout, or naming scheme without explicit approval.
-- Treat every external API, SDK, or service as replaceable. Put it behind a narrow application-owned adapter; keep vendor clients and types inside that adapter and the composition layer so functionality code and tests depend only on application-owned capabilities.
-- Construct objects and select concrete external adapters only at explicit application boundaries. Functionality code receives required collaborators through constructors or function arguments; it must not discover them through globals, service locators, or hidden I/O.
-- Mutable static or global state is banned, including singletons, shared instances, global registries, module-level mutable values, and global caches. Give state an explicitly constructed owner and lifetime, then pass it to consumers. Immutable constants and stateless pure functions are not state.
-- Preserve encapsulation: give each object or module ownership of its state, invariants, and behavior; expose narrow intent-based APIs, and do not substitute helpers, forwarding interfaces, or mutable data access for a real abstraction.
-- Do not add code comments unless documenting a non-obvious public API contract or an unavoidable external constraint, quirk, or hack. First make the code self-explanatory; permitted comments explain why, never narrate what.
-- Prefer code inspection and existing tests before using MCPs, browser tools, or external automation.
-- If a human-approved convention changes, update the Claude config files in the same change.
-- Keep user-facing responses concise and outcome-first. State what changed, what was verified, and any decision or risk that needs attention; offer supporting detail instead of leading with it.
+- For non-trivial work: load conventions, audit, refactor for readiness,
+  implement, and verify. Present the best solution first.
+- Ask before introducing a new dependency, pattern, abstraction, file layout,
+  or naming scheme. Explain plans before broad or risky edits.
+- Keep external systems behind narrow application-owned adapters.
+- Construct dependencies at the edges and pass capabilities inward.
+  Ban mutable globals, static state, and singletons; give state explicit owners.
+- Prefer an explicitly supplied config file, validated into an immutable typed object.
+  Inject needed settings; keep environment reads at the entry boundary, out of behaviour code.
+- Preserve encapsulation and use intent-based APIs.
+- Add comments only for non-obvious public contracts or unavoidable constraints.
+- Do not conceal failures with catch-and-continue, guessed defaults, speculative
+  fallbacks, or blind retries. Recovery must follow approved policy and preserve valid state.
+- Start investigations with source and tests; use tools for evidence they add.
+- Follow the repository's Git policy and record approved convention changes.
+- Report outcomes, verification, and material decisions concisely.
 
 ## Commands
-- Test: `<your test command>`
-- Lint or checks: `<your lint/check command>`
-- Typecheck or compile check: `<your typecheck command>`
-- Format: `<your format command>`
+
+- Test: `<targeted test command>`
+- Checks: `<lint/typecheck command>`
+- Format: `<format command>`
+- Full build: `<CI job>`
 
 ## Dangerous Areas
-- Do not edit generated files in `<generated-code paths>`
-- Ask before touching live infrastructure, security-critical code, billing, auth, or other high-blast-radius foundations
+
+- Do not edit generated files in `<paths>`.
+- Ask before touching `<project-specific high-blast-radius areas>`.
 ```
 
-Why this works:
+Include these instructions only where they represent chosen project policy. Keep detailed workflows in their owning skills.
 
-- Every instruction is important enough to justify always-on context.
-- The commands define completion.
-- The dangerous-areas section surfaces risks without bloating context.
-- Scoped guidance remains independently discoverable instead of turning the root file into a configuration index.
+### Context stability
 
-### Response discipline is part of the operating contract
+The official [Memory](https://code.claude.com/docs/en/memory) guidance targets fewer than 200 lines per file. `@path` imports reorganise content but still load with their parent; they do not reduce startup context.
 
-Claude should not make the user reconstruct the result from a long work log. A good default response leads with the outcome, followed only by the information needed to understand, verify, or decide on it. Routine implementation detail, command-by-command narration, and exhaustive investigation notes should be available on request, not included by default.
+**Do:** keep root guidance durable, use child files only where a subtree genuinely differs, and keep temporary state in the conversation, issue, or plan. Use `/context` to inspect loaded memory, `/memory` for auto memory, and `/doctor` for configuration issues. Root instructions reload after `/compact`; nested files reload when that subtree is read.
 
-Surface material trade-offs, failed verification, blockers, and decisions requiring approval. Omit unnecessary detail by default and offer evidence or a deeper walkthrough when useful.
+**Don't:** add a root rule for every isolated mistake or store team policy only in auto memory.
 
-### Keep the root file short on purpose
+See [Best Practices](https://code.claude.com/docs/en/best-practices) and the [study of public agent manifests](https://arxiv.org/abs/2509.14744) for the narrow operating-contract approach.
 
-The official [Memory](https://code.claude.com/docs/en/memory) guidance targets fewer than 200 lines per `AGENTS.md`. Child files are appropriate only when a subtree genuinely works differently. Path-scoped rules reduce startup context; splitting content into `@path` imports only reorganizes it because imports still load with the parent file.
+## Instruction layers
 
-Anthropic's [Best Practices](https://code.claude.com/docs/en/best-practices) includes non-obvious commands, testing instructions, repository etiquette, architectural decisions, and code-style differences while excluding inferable facts, standard conventions, volatile information, and tutorials. An [empirical study of public `AGENTS.md` files](https://arxiv.org/abs/2509.14744) found the same focus. Together, these sources support a narrow content model.
+| Surface | Owns |
+| --- | --- |
+| `AGENTS.md` | Crucial repository-wide operating contract |
+| `.claude/rules/` | Always-on or path-scoped standing guidance |
+| Skills | Task-shaped workflows and reusable context |
+| References | Detail and examples owned by a rule or skill |
+| Hooks | Advisory reminders, diagnostics, logging, and deterministic side effects |
+| Tooling and CI | Repeatable checks and deterministic enforcement |
+| `settings.json` | Permissions and access policy |
 
-### Context and content stability
+Use the layer that controls when the instruction applies. Rules govern standing behaviour; skills govern procedures; references supply facts and detail. See the official [Skills documentation](https://code.claude.com/docs/en/skills).
 
-Keep root `AGENTS.md` stable because every session loads it. Put durable, always-relevant instructions there; put multi-step or local guidance in skills or path-scoped rules; put transient task state in the conversation, issue, or plan. Claude re-reads project-root `AGENTS.md` after `/compact` and reloads nested files when it reads in that subtree. Use `/context` to confirm loaded memory files, `/memory` to inspect auto memory, and `/doctor` to identify a root file that needs trimming.
+### Example repository layout
 
-`.claude/rules/` supports modular always-on or path-scoped instructions. Use it alongside root `AGENTS.md`, skills, hooks, settings, and reference files; do not treat it as the whole system. Each instruction must live in the correct layer and load when needed.
-
-## Skills and Rules Architecture
-
-### Define the layers clearly
-
-The word "rules" is often used too loosely. For a long-lived project, separate the layers:
-
-- `AGENTS.md`: always-on repository operating contract.
-- `.claude/rules/`: persistent always-on or path-scoped standing instructions.
-- Skills: reusable, on-demand workflows and scoped instruction packages.
-- Reference files: detailed conventions, subsystem notes, and examples used by skills.
-- Hooks and tooling: enforcement, logging, and side effects.
-- `settings.json`: allow/deny behavior, permission posture, and related access policy.
-
-The official [Skills](https://code.claude.com/docs/en/skills) docs are the strongest source here. Anthropic treats skills as the right way to package workflows and reusable context. Skills can be project-, personal-, enterprise-, or plugin-scoped; nested project skills become available when Claude reads or edits in that subtree. They can also run in a forked context when a bounded research or review task deserves its own agent.
-
-Rules deserve first-class treatment in this architecture. They are the right home for standing instructions that should load automatically all the time or automatically for a subtree. Skills are different: they are better for task-shaped workflows, investigation flows, and reusable procedures that Claude should invoke based on intent. Reference files are different again: they hold detail that supports a rule or skill without needing to load constantly.
-
-Use skills and path-scoped rules to keep technical guidance narrow: load SwiftUI accessibility rules for SwiftUI work, transaction conventions for persistence work, and UI audit criteria for interface reviews. Provide more relevant guidance only where it applies.
-
-### What a skill should do
-
-A skill should answer one question cleanly: "When this task type appears, what exact process and constraints should Claude follow?"
-
-Good skill categories:
-
-- global coding conventions,
-- subsystem conventions,
-- feature implementation workflow,
-- testing and test-infrastructure conventions,
-- bug investigation workflow,
-- review workflow,
-- release workflow,
-- config-maintenance workflow.
-
-Bad skill categories:
-
-- giant grab-bag "backend skill",
-- vague "good coding practices",
-- one-off project notes that are never reused,
-- crucial repository-wide instructions that should live in root `AGENTS.md` instead.
-
-### Recommended repository layout
-
-Use a structure like this:
+**Example:** this tree illustrates the instruction layers. The filenames, skill names, and supporting-file arrangement are illustrative; create only what the repository needs and follow the tool’s required discovery locations.
 
 ```text
 .claude/
@@ -181,101 +122,58 @@ Use a structure like this:
     post-edit-check.sh
 ```
 
-This design keeps the root file short while still making detailed guidance available. It also avoids collapsing the whole architecture into either one giant root file or one giant rules folder when different instruction types belong in different layers.
+## Design for self-discovery
 
-### Design for self-discovery
+The user should be able to describe the desired outcome naturally. Routine correctness should not require remembering skill names or slash commands.
 
-Assume the user will often forget which skill, rule, or agent exists. The setup should still work.
+**Do:**
 
-That means common workflows must be designed so Claude can discover and route to them automatically from ordinary task wording. If a recurring workflow only works when the human remembers a specific slash command or exact skill name, the setup is underspecified.
+- Match skill names and descriptions to real requests, with trigger phrases and exclusions.
+- Keep workflows narrow: feature work, tests, bugs, reviews, releases, configuration, and distinct subsystem conventions.
+- Use nested placement and path-scoped rules for local guidance.
+- Give reference documents an owning rule or skill.
+- Describe agents by bounded jobs such as repository audit or migration review.
+- Test routing with several natural prompts; fix metadata, overlap, placement, or ownership when it fails.
 
-The stronger target is zero ritual. The user describes the desired outcome; Claude identifies the task and touched subsystem, loads the applicable rules and skills, follows their references, and performs the work. Users may invoke a skill explicitly when they want to, but routine correctness must not depend on them knowing the configuration. If the user repeatedly has to say "use the UI skill" or "check the database rules," treat that as a routing defect in the skill description, rule scope, naming, or ownership of its supporting references.
+**Don't:**
 
-This needs to be stated plainly: if you want Claude to use any part of the Claude-side file surface unprompted, it is not enough for those files to merely exist somewhere in the repository. Each mechanism must be discoverable in its native way: skills through precise metadata, rules and local `AGENTS.md` files through appropriate scope, agents through clear descriptions, and reference documents through the skill or rule that owns them. Orphaned markdown is not a discoverability strategy.
+- Create grab-bag “backend” or “good coding” skills.
+- Leave important guidance in orphaned Markdown.
+- Fix missed routing by expanding the root index or making the user remember more commands.
 
-Do not compensate for weak `.claude/` configuration by listing or linking it from root `AGENTS.md`. That hides the defect while spending context on every task. Fix the skill metadata, rule scope, agent description, directory placement, or reference ownership so normal task wording and touched paths lead Claude to the right material directly.
+Skills can be project-, personal-, enterprise-, or plugin-scoped. Nested project skills become available when Claude reads or edits that subtree.
 
-Rules are discoverable through always-on or path scope. They expose standing guidance without requiring user invocation.
+## Automatic versus explicit invocation
 
-Use these rules:
+Automatically route safe guidance when its relevance is clear: common workflows, local conventions, bug and review methods, and deep reference-backed expertise. Progressive disclosure keeps unused detail out of context.
 
-- Give skills names and `description` fields that match real task language such as "feature workflow", "API conventions", or "bug investigation", not internal jargon.
-- Put likely trigger phrases and exclusions directly in the `description`; it is the routing metadata Claude sees before loading the full skill.
-- State both when to use the skill and when not to use it. Overlapping skills reduce routing reliability.
-- Keep high-frequency skills narrow and obvious so Claude can confidently auto-select them.
-- Keep rare or heavy workflows explicit. Automatic routing should cover common cases, not every possible case.
-- Put genuinely local skills under the relevant nested `.claude/skills/` directory; use path-scoped rules for standing guidance by file type or subtree.
-- Write reference docs to support a skill, not to act as orphaned markdown that Claude might never load.
-- If you use custom agents or subagents, define them around distinct jobs Claude can infer, such as `repo-audit`, `ui-review`, or `migration-check`, not vague labels like `engineer` or `helper`.
-- If Claude repeatedly misses a relevant skill, fix the skill metadata, split overlapping skills, or rename the skill. Do not solve repeated routing failures by telling the user to remember more commands.
-- Test automatic routing with several natural prompts a programmer might actually type. Treat repeated missed invocations as a metadata, naming, or scope bug.
+Require explicit invocation when activation is itself a user decision or side effect, or the workflow is destructive, privileged, experimental, unusually costly, or unsafe to select from ambiguous wording.
 
-The design target is simple: for common task types, the user should be able to ask for the work naturally and Claude should pull in the right workflow guidance without being hand-held.
+Use `disable-model-invocation` and `user-invocable` to express that distinction. `context: fork` uses a background fork unless `background: false` is set. Fork edits fall outside parent checkpoints; `/rewind` does not undo them, so use Git for review or recovery.
 
-### How to write a skill
+### Feature-workflow skill
 
-A good skill is concise, narrow, and action-oriented. The official skills docs are right that routing quality depends heavily on its `description`, invocation settings, directory scope, and tool boundaries. Skills may include supporting files, dynamic context injection, and `context: fork` with a suitable agent for bounded work.
+Keep the entry workflow short; let references supply repository-specific detail.
 
-Example:
+**Example skill:** adapt the name, triggers, and steps to the repository’s approved workflow.
 
 ```md
 ---
-description: Use for any non-trivial feature or bugfix. Enforces audit -> refactor -> implement -> verify. Do not use for typo-only or formatting-only edits.
+description: Use for non-trivial features and bugfixes requiring audit, readiness refactoring, implementation, and verification. Excludes typo-only and formatting-only edits.
 user-invocable: true
 ---
 
 # Feature Workflow
 
-1. Load the applicable convention skills before writing code.
-2. Audit the touched code paths and identify the current canonical patterns.
-3. Inspect touched functionality for hidden construction, service location, mutable static or global state, configuration reads, or I/O. Remove mutable globals from the touched path; move state into explicitly constructed, lifetime-owned objects and pass required capabilities inward.
-4. Identify which object or module should own the affected state, invariants, and decisions. Check that callers can use a narrow intent-based API without coordinating the owner's internals.
-5. Ask: "If I were starting from scratch, knowing what I know now, what is the best approach?"
-6. Assume the area is not ready for the new feature until proven otherwise. Refactor, extract, and encapsulate until it is a clean host for the change.
-7. Present the ideal solution first. If a smaller or faster alternative exists, label it as a compromise and state the debt, constraint, or risk it accepts.
-8. If the ideal solution introduces a new dependency, pattern, abstraction, or file structure, stop and ask for approval.
-9. Implement only after the structure is coherent.
-10. Review every added or retained code comment. Remove narration and comments made redundant by the refactor; keep only documented public contracts and unavoidable why-level constraints.
-11. Run targeted verification, including a direct unit test constructed with explicit fakes where applicable.
-12. If the task established a new approved convention, update the config files in the same change.
+1. Load applicable conventions and search callers, implementations, and peers.
+2. Inspect ownership, invariants, hidden dependencies, mutable global state,
+   and provider-contract leakage in touched paths.
+3. Identify the best design for the requirement and any approval decisions.
+4. Refactor only what the current requirement needs; then implement.
+5. Review the diff and comments; run appropriate verification.
+6. Record any approved convention changes in their owning configuration.
 ```
 
-The workflow should make Claude's default behavior resist drift.
+## Response discipline
 
-### Auto-loaded vs explicitly loaded skills
-
-Safe skills whose relevance can be inferred should normally be model-invocable. Progressive disclosure already keeps their bodies and supporting references out of context until needed, so a technically deep skill does not need to become always-on noise merely to be automatically discoverable.
-
-Use automatic routing for:
-
-- frequent workflow skills,
-- narrow subsystem conventions,
-- recurring bugfix or review flows,
-- specialized technical guidance tied to detectable task language, file types, or paths,
-- heavy reference-backed workflows whose entry skill can load the detail progressively,
-- and any useful guidance the user should not have to remember to invoke manually.
-
-Require explicit invocation for:
-
-- workflows whose activation itself represents a user decision, external side effect, or approval boundary,
-- destructive, privileged, experimental, or unusually costly operations,
-- and genuinely ambiguous tasks where automatic selection would be unsafe.
-
-Skill frontmatter supports this distinction through `disable-model-invocation` and `user-invocable`. `context: fork` runs in a forked background context unless the skill sets `background: false`. Background-fork edits fall outside the parent session's checkpoints, so `/rewind` does not undo them; use Git to review or revert them. Use nested directories or path-scoped rules for local applicability. Keep routing metadata precise and non-overlapping without hiding safe expertise behind slash commands.
-
-### Put each rule in its enforceable layer
-
-A rule is a load-bearing instruction with a clear home, not an arbitrary markdown file:
-
-- Root rule in `AGENTS.md`:
-  - "Never introduce a new dependency or abstraction without explicit approval."
-- Path-scoped standing rule in `.claude/rules/`:
-  - "In `<subsystem path>`, use the shared error translation pattern and do not invent local response shapes."
-- Scoped rule in a convention doc or skill:
-  - "For this task type, audit -> refactor -> implement -> verify."
-- Permission rule in `settings.json`:
-  - "This command family is allowed, this one must ask, and this one is denied."
-- Enforced rule in tooling:
-  - "Touched API packages must pass their targeted test command before the task is complete."
-
-Reference documents can support any layer, but documentation alone cannot route or enforce a rule. Verify that Claude encounters each instruction and move deterministic rules into tooling where possible.
+Lead with the outcome, relevant verification, and decisions or risks requiring attention. Keep routine command logs and exhaustive investigation notes available on request. Report failures, blockers, and material trade-offs directly.

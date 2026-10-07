@@ -1,108 +1,41 @@
 # Integrations, Hooks, and Permissions
 
-### MCP is for missing access or structured evidence, not for thinking
+MCP provides access and structured evidence. Use it when it adds something source, tests, and local commands cannot adequately establish. See the official [MCP documentation](https://code.claude.com/docs/en/mcp).
 
-Anthropic's [MCP](https://code.claude.com/docs/en/mcp) docs frame MCP correctly: it gives Claude access to tools and systems. That includes external systems and local analysis engines such as a code graph. The common misuse is letting MCP stand in for analysis that should have happened in the code first.
+## Code-first investigation
 
-High-value MCP categories in a coding workflow:
+Start with code, tests, configuration, and local outputs. Use semantic tools during investigation where they answer the question better; use external tools when remote truth or runtime state is required.
 
-- version-accurate docs,
-- IDE semantic analysis, inspections, and refactoring through the [JetBrains MCP server](code-intelligence.md#jetbrains-mcp-for-ide-backed-code-intelligence),
-- locally indexed code relationships when ordinary search cannot reliably enumerate them,
-- database inspection,
-- GitHub and CI/CD state,
-- issue trackers,
-- internal service APIs,
-- and carefully chosen browser/runtime tools when source inspection is not enough.
+**Do use MCP for:**
 
-Low-value or overused cases:
+- Version-accurate documentation.
+- [JetBrains IDE analysis and refactoring](code-intelligence.md#jetbrains-mcp-for-ide-backed-code-intelligence).
+- Indexed relationships ordinary search cannot reliably enumerate.
+- Database inspection, GitHub/CI state, issues, internal APIs, and required remote actions.
+- Browser/runtime evidence when source cannot establish rendered behaviour.
 
-- opening a browser before reading the component code,
-- querying external systems before confirming the repo cannot answer the question,
-- attaching heavyweight tools to every session whether needed or not.
+**Don't:** open a browser before understanding the relevant code, query remote systems for locally available answers, or attach heavyweight tools to every session.
 
-### The code-first rule
+Keep frequently useful integrations available; scope database, deployment, browser, and rare systems to the tasks needing them.
 
-Encode this directly:
+## Hooks
 
-1. read the code,
-2. read the tests,
-3. read the config,
-4. inspect local logs or outputs,
-5. use a local IDE or code-intelligence MCP when semantic queries, refactorings, or graph-wide relationships require it;
-6. use an external MCP when the answer depends on remote truth or runtime state you cannot infer locally.
+Prefer advisory hooks: reminders, actionable diagnostics, logging, and notifications that let work continue. Even slightly ambiguous wording or a faulty blocking condition can repeatedly reject legitimate actions, trap Claude in retries or workarounds, and become a huge productivity drain. Route task intent through skill/agent descriptions, path scope, and local placement.
 
-This saves context, time, and confusion.
+**Do:**
 
-### When an MCP is justified
+- Log commands and edits through `PostToolUse`.
+- Provide short `SessionStart` reminders.
+- Format touched files or report targeted check failures with an actionable next step; avoid blocking each edit while work is incomplete.
+- Notify or record summaries at `Stop`.
+- Record completion/idle events for configured multi-agent work.
+- Keep hooks fast, deterministic, and visible; keep advisory failures non-blocking.
 
-Use an MCP when at least one of these is true:
+**Don't:** classify natural-language intent with hooks, turn engineering advice into command vetoes, or block legitimate deletion and replacement with broad matching. Put access restrictions in settings and sandbox policy, and completion checks in tests or CI.
 
-- the source of truth is outside the repo,
-- a local analysis engine can answer a structural question more completely than manual search,
-- you need live system state,
-- you need version-accurate external documentation,
-- or you need to perform a remote action that cannot be simulated locally.
+Use a blocking hook only for a narrow, explicitly chosen requirement that those mechanisms cannot express. Test legitimate and prohibited cases, keep its decision deterministic, and provide a precise reason and remedy. Repeated false positives are a hook defect to fix, rather than a reason to make Claude fight the hook.
 
-If none of those are true, stay with the compiler, language server, tests, and repository search.
-
-### Scope MCP availability
-
-Do not make every MCP globally available all the time just because it exists. If the environment allows it, keep the default MCP surface small and add specialized MCPs only for sessions that need them.
-
-A practical baseline:
-
-- always-on: only the few MCPs that provide frequently needed code intelligence or external truth,
-- task-specific: database, browser, deployment, or rare internal systems.
-
-The cost is not just latency. It is also conceptual distraction. Claude will use tools that exist.
-
-## Hooks and Permissions
-
-### Hooks are for logging, side effects, and auditability
-
-Claude Code hooks support many actions, but their useful role in this setup is deliberately narrow.
-
-For long-running interactive projects, the right use of hooks is:
-
-- logging what Claude did,
-- attaching lightweight reminders,
-- running targeted post-edit checks,
-- triggering notifications,
-- updating state for audit or workflow systems,
-- and recording useful metadata.
-
-Avoid hooks that classify natural-language intent. Inferring whether a request sounds like a bug fix or which workflow applies is brittle. Route semantically through precise skill and agent descriptions, path-scoped rules, and local placement. Correct failures with better metadata, narrower scope, and clearer ownership. Reserve hooks for deterministic events and side effects.
-
-### Hooks are not the right place to block normal development actions
-
-Some guides recommend blocking `rm`, blocking certain writes, or turning hooks into a safety cage. Reject that.
-
-Files legitimately need to be deleted. Directories legitimately need to be replaced. Blocking common actions at the hook layer creates three bad outcomes:
-
-1. Claude fights the environment instead of solving the task.
-2. Humans start working around the hook system.
-3. The real problem, poor instructions and poor task governance, remains unsolved.
-
-Use task instructions, approval policy, sandboxing, and operating rules when file deletion needs control; do not rely on a generic blocking hook.
-
-Blocking hooks are brittle, easy to circumvent, and often constrain command syntax rather than engineering intent. They impede legitimate work without addressing weak instructions or governance.
-
-If the goal is to allow or deny classes of behavior, `settings.json` is the correct place to express that policy. Hooks are the wrong tool for access control. Use hooks for deterministic side effects and auditability; use settings and sandbox policy for permissions.
-
-### High-value hook examples
-
-Good hooks for this setup:
-
-- `SessionStart`: print a short reminder to use convention skills and the feature workflow for non-trivial changes.
-- `PostToolUse`: append command and file-change logs to an audit file.
-- post-edit side effect: run a targeted formatter or linter on touched files.
-- `Stop`: write a short task summary or emit a notification.
-- multi-agent events: record task completion or teammate idle state when using multi-agent workflows.
-
-Keep them fast, deterministic, and visible.
-
-### Permissions reality
+## Permissions
 
 Claude Code provides `allow`, `ask`, and `deny` rules; seven documented modes (`default`/`manual`, `acceptEdits`, `plan`, `auto`, `dontAsk`, and `bypassPermissions`); sandbox controls; and a `PermissionRequest` hook. Rules use `Tool` or `Tool(specifier)` syntax and are evaluated deny first, then ask, then allow; the first match wins. Write policies for the intended action, test them with `/status` and a safe representative command, and do not treat a broad Bash rule as an airtight security boundary.
 
@@ -111,7 +44,7 @@ Recommended policy:
 - put team-shared, deterministic `deny` rules for secrets and high-risk commands in `.claude/settings.json`;
 - put personal convenience allows in `.claude/settings.local.json` or `~/.claude/settings.json`, not in a committed repository file;
 - use sandbox filesystem, network, and credential restrictions when isolation matters, because they apply at the subprocess boundary;
-- use a `PreToolUse` or `PermissionRequest` hook only for narrow, deterministic policy or workflow handling; and
+- prefer advisory hooks; use blocking `PreToolUse` or `PermissionRequest` handling only for a narrow, tested requirement that settings and sandbox policy cannot express; and
 - use `AGENTS.md`, skills, tests, and review for behavior that cannot be expressed as a deterministic access rule.
 
 Auto mode can allow routine work while escalating risky actions in personal or managed environments. A repository cannot opt a user into it: project and local settings ignore `auto` and its prose-based `autoMode` policy. Keep hard prohibitions in deny rules or sandbox policy; the classifier is a convenience layer, not an authorization model.

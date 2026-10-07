@@ -1,34 +1,31 @@
 # Parallel Work
 
-### Use subagents for bounded parallel work
+Parallelism pays off when tasks have independent questions and clear ownership. Extra agents do not resolve an ambiguous task or create shared live reasoning.
 
-Subagents run in the background by default, allowing the main agent to continue during parallel investigation, audit, review, or clearly separated implementation. Permission prompts appear in the main session, and completed results remain visible through `/tasks`.
+## Do
 
-Do not infer more than the product promises: subagents return results to the parent, but they are not a shared live-reasoning team. Give each one a bounded question, a clear ownership boundary, and an expected artifact or conclusion. Reserve nested delegation and dynamic workflows for work that is genuinely decomposable; more agents do not repair an ambiguous task.
+- Give each agent a bounded question, owned files or subsystem, and expected artifact or conclusion.
+- Use parallel investigation, isolated subsystems, read-only review alongside implementation, or clearly divided refactors.
+- Give concurrent writers separate checkouts and non-overlapping ownership.
+- Follow the [Git workflow](workflows-and-maintenance.md#git-workflow): default to `main`, use temporary branches for worktree isolation, regularly rebase, and integrate without merge commits.
 
-### Choose the isolation model deliberately
+## Don't
 
-Worktree behavior depends on the surface. Desktop creates a worktree for each new session, and agent view moves a dispatched background session into a worktree when it needs to edit files. An ordinary subagent starts in the current checkout unless its definition sets `isolation: worktree` or the task explicitly requests worktree isolation. Use `claude --worktree` for a separately operated terminal session.
+- Put several writers in the same feature area.
+- Parallelise small tasks whose synchronization costs exceed the work.
+- Assume forks share live working memory or use nested delegation for tightly coupled reasoning.
 
-Worktrees branch from the remote default branch by default; set `worktree.baseRef` to `"head"` when isolated work must include local commits or feature-branch state. A `.worktreeinclude` file can copy required gitignored files such as a development `.env`. Review that file carefully because every matching secret is copied into each new isolated checkout.
+## Isolation and product behaviour
 
-For several independently managed interactive sessions, either worktrees or sibling clones can be appropriate. Multiple clones remain a simple option when you want complete environment separation; worktrees are lighter when the work shares a repository and you understand the Git workflow. The key decision is ownership, not the directory mechanism.
+Subagents run in the background by default, with permission prompts in the main session and results in `/tasks`.
 
-### How to avoid merge pain
+| Surface | Isolation |
+| --- | --- |
+| Desktop | Each new session gets a worktree. |
+| Agent view | A dispatched background session moves to a worktree when it needs to edit. |
+| Ordinary subagent | Current checkout unless `isolation: worktree` or the task requests isolation. |
+| Separate terminal session | Use `claude --worktree`. |
 
-Parallelism is only worth the overhead when tasks are actually separable.
+Worktrees default to the remote default branch. Set `worktree.baseRef` to `"head"` when isolated work needs local commits or feature-branch state. Review `.worktreeinclude` carefully: matching gitignored files, including secrets, are copied into every isolated checkout.
 
-Good candidates:
-
-- isolated subsystems,
-- long-running investigations,
-- one implementation plus one read-only review thread,
-- large refactors with clearly divided modules.
-
-Bad candidates:
-
-- multiple sessions editing the same feature area,
-- small changes that would finish before synchronization overhead pays off,
-- tasks that depend on constant shared reasoning across the same files.
-
-Give each writer a separate checkout and a non-overlapping ownership boundary. Follow the [Git workflow](workflows-and-maintenance.md#git-workflow): work on `main` by default, use temporary worktree branches when isolation is needed, and regularly rebase long-running work onto current `main`. Integrate completed work without merge commits.
+Sibling clones are also suitable for independently managed sessions needing complete environment separation. Choose the checkout mechanism around ownership and environment needs.

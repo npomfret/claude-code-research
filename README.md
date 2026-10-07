@@ -2,13 +2,13 @@
 
 This repository contains a practical guide to configuring Claude Code for long-running software projects.
 
-The main document, [claude-code-guide.md](claude-code-guide.md), explains how to structure `AGENTS.md`, skills, rules, hooks, conventions, MCP usage, permissions, and parallel workflows so Claude Code produces maintainable work without accumulating drift.
+The main document, [claude-code-guide.md](claude-code-guide.md), provides short rationales, practical do’s and don’ts, and workflows for `AGENTS.md`, skills, rules, hooks, conventions, MCP usage, permissions, and parallel workflows so Claude Code produces maintainable work without accumulating drift.
 
-It addresses common failure modes: local pattern copying, avoided refactors, inconsistent abstractions, leaked vendor APIs, tool overuse, weak type and database design, and disposable UI code.
+It focuses on maintainable architecture, discoverable instructions, proportionate verification, and coherent project conventions as models improve.
 
 ## Suggested workflow
 
-Start Codex and use this prompt:
+Start Codex with a prompt such as this. **Example:** replace `<guide-url>` and adapt the configuration request to the repository.
 
 ```
 This repository uses Claude Code. Read the Claude Code guide at <guide-url> and its linked material to understand the product's capabilities and limitations.

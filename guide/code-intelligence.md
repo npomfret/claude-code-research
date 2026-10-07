@@ -1,30 +1,16 @@
 # Code Intelligence
 
-### Prefer tools that expose facts about code
+Use the cheapest tool that can answer the question completely. Language and graph tools reveal relationships; source and runtime checks establish what those relationships mean.
 
-The most useful additions to Claude Code are not more personas, planning rituals, or prompt packs. They are tools that answer engineering questions with repository evidence:
+## Tool order
 
-- Where is this symbol defined and used?
-- What calls it, and what does it call?
-- Which execution paths pass through it?
-- What is the blast radius of changing it?
-- Which imports violate the intended architecture?
-- Which files, exports, and dependencies are actually unused?
-- Can this repeated code shape be found or rewritten safely across the repository?
+1. Compiler, language server, and IDE tools for types, definitions, references, renames, and diagnostics; prefer JetBrains MCP for supported IDE operations.
+2. `rg` for names, literals, configuration, tests, logs, and conventions.
+3. Graph/index queries for indirect callers, inheritance, and multi-file paths.
+4. AST-aware search and rewriting when text matching is fragile.
+5. Build-integrated static checks for durable enforcement.
 
-These tools make Claude a better programmer because they reduce guessing. They do not replace reading the implementation, understanding runtime behavior, or running tests.
-
-### Use the cheapest reliable tool first
-
-Use this order:
-
-1. **Compiler, language server, and IDE semantic tools** for types, definitions, references, rename operations, and diagnostics. In JetBrains projects, prefer the JetBrains MCP server for supported semantic queries and refactoring operations.
-2. **`rg` and repository search** for exact names, literals, configuration, tests, logs, and conventions. Text search is transparent, fast, and often sufficient.
-3. **Code graph or structural index** when the question spans many files, indirect callers, inheritance, or execution paths.
-4. **AST-aware search and rewriting** when text patterns are too fragile.
-5. **Static checks in the build** when a discovered rule should remain enforced after the current session ends.
-
-Do not add a heavyweight index merely to answer questions that the compiler or `rg` already answers well. Do not ask Claude to infer a repository-wide relationship from a handful of search results when a graph or language tool can enumerate it.
+**Don't:** add a heavy index for a question ordinary search answers well, or infer repository-wide relationships from a handful of matches.
 
 ### JetBrains MCP for IDE-backed code intelligence
 
@@ -44,56 +30,38 @@ JetBrains MCP is the preferred direction for projects using a supported JetBrain
 
 ### GitNexus for additional repository structure and blast radius
 
-[GitNexus](https://github.com/nxpatterns/gitnexus) indexes a local repository into a knowledge graph derived from Tree-sitter parsing and language-aware relationship resolution. Its CLI and MCP tools expose symbol context, incoming and outgoing calls, imports, inheritance, execution flows, paths between symbols, diff impact, and upstream blast radius. That directly supports the audit step this guide requires.
+[GitNexus](https://github.com/nxpatterns/gitnexus) builds a local code graph from Tree-sitter parsing and relationship resolution. Use it for symbol context, calls, imports, inheritance, execution paths, diff impact, and upstream blast radius where IDE coverage is insufficient.
 
-High-value uses:
+**Do:**
 
-- orienting in an unfamiliar or large repository;
-- finding callers and downstream dependencies before a refactor;
-- tracing a bug through a multi-file execution path;
-- checking which processes a diff may affect;
-- identifying related tests and modules before editing;
-- and verifying that a rename or extraction covers more than the locally obvious references.
+- Use graph queries to orient, trace bugs, find callers/tests, and scope refactors.
+- Check staleness and re-index after meaningful changes.
+- Confirm high-risk findings with language references, source, targeted search, and tests.
+- Review instruction, skill, and hook changes made by `gitnexus analyze`; prefer narrow/read-only integration when only queries are needed.
+- Review its PolyForm Noncommercial 1.0.0 license and obtain appropriate terms for commercial adoption.
 
-Use it as an index, not an oracle. Static call graphs have blind spots around reflection, dynamic dispatch, generated code, runtime registration, framework conventions, and unresolved language features. Confirm high-risk findings with language-server references, targeted searches, source inspection, and tests. Re-index after meaningful changes and check index staleness before relying on impact results.
-
-There are two operational cautions:
-
-- `gitnexus analyze` can install skills, register hooks, and write context into `AGENTS.md` or `AGENTS.md`. Review those changes instead of accepting generated repository instructions blindly. Prefer a narrow or read-only integration when graph queries are all you need.
-- GitNexus uses the PolyForm Noncommercial 1.0.0 license. Personal and other qualifying noncommercial use is permitted; commercial teams must review the license or obtain appropriate terms before adoption.
+**Don't:** treat static graphs as complete around reflection, dynamic dispatch, generated code, runtime registration, framework conventions, or unresolved language features.
 
 ### ast-grep for structural search and codemods
 
-[ast-grep](https://ast-grep.github.io/) searches parsed syntax trees rather than raw text. Use it when formatting, variable names, or superficial syntax vary but the code shape is the same.
+[ast-grep](https://ast-grep.github.io/) matches parsed code shapes. Use it for deprecated call forms, nested catches, unsafe assertions, framework anti-patterns, codemods, and structural lint rules.
 
-Good uses include:
+**Do:** search first, inspect matches and edge cases, rewrite in a clean working tree, and review the diff under the [Git workflow](workflows-and-maintenance.md#git-workflow).
 
-- finding every call with a deprecated argument shape;
-- locating nested `try/catch`, unsafe assertions, or framework anti-patterns;
-- building a one-off, reviewable codemod;
-- and turning a recurring structural convention into a checked rule.
-
-Start with search-only output, inspect representative matches and edge cases, then run rewrites in a clean working tree and review the diff. Follow the repository's [Git workflow](workflows-and-maintenance.md#git-workflow) when choosing a branch or isolated worktree. AST matching is more precise than regex, but a syntactic match is not proof of equivalent runtime semantics.
+**Don't:** equate a syntactic match with equivalent runtime semantics.
 
 ### dependency-cruiser for executable architecture
 
-For JavaScript and TypeScript repositories, [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) can validate import relationships against checked-in rules. It can detect cycles, orphans, undeclared dependencies, production code importing test code, and forbidden layer crossings.
-
-Encoded import directions apply equally to Claude, human programmers, and CI. Use graph output to investigate structure and rules to prevent regression.
+[dependency-cruiser](https://github.com/sverweij/dependency-cruiser) checks JavaScript/TypeScript imports for cycles, orphans, undeclared dependencies, test imports in production, and forbidden boundaries. Use graph output for investigation and checked-in rules for enforcement.
 
 ### Knip for dead-code and dependency cleanup
 
-For JavaScript and TypeScript, [Knip](https://knip.dev/) builds a project graph from entry points and framework-aware plugins, then reports unused files, exports, dependencies, unresolved imports, and optional cycle checks. It is valuable after refactors because Claude frequently leaves superseded code behind.
+[Knip](https://knip.dev/) reports unused files, exports, dependencies, unresolved imports, and optional cycles from a configured JavaScript/TypeScript project graph.
 
-Treat findings as leads until the project graph is correctly configured. Dynamic imports, generated entry points, framework conventions, and missing plugin configuration can create false positives. Fix entry-point and plugin gaps before adding broad ignores, and review automatic fixes before committing them.
+**Do:** configure entry points and framework plugins, investigate dynamic/generated paths, and review fixes before committing.
 
-### Make discoveries durable
+**Don't:** delete every reported item blindly or hide configuration gaps with broad ignores.
 
-The best outcome is not merely that Claude used a tool once. Convert stable findings into repository enforcement:
+## Make discoveries durable
 
-- an architectural boundary becomes a dependency rule;
-- a forbidden code shape becomes an AST lint rule;
-- dead-code detection becomes a repeatable check;
-- and canonical compiler, graph, search, and analysis commands become part of the repository's documented verification surface.
-
-Useful tools produce inspectable evidence and leave the codebase verifiable without the current conversation.
+Turn stable boundaries into dependency rules, forbidden shapes into AST checks, and dead-code detection into repeatable verification. Document canonical analysis commands so the repository remains verifiable after the conversation ends.

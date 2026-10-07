@@ -1,68 +1,36 @@
 # Claude Code Guide for Long-Running Projects
 
-This guide is for maintained codebases, not demos or disposable prototypes. Without structure, Claude Code duplicates logic, patches features into code that first needs refactoring, and introduces pattern drift.
+This guide helps keep maintained codebases coherent as Claude Code works on them. Explicit project decisions, discoverable guidance, and repeatable checks remain useful as models improve; the setup should address observed risks and make engineering constraints explicit.
 
-Anthropic's official documentation, collected at the end of this guide, is the source of truth for Claude Code capabilities.
+Use this page as the overview and the focused chapters as practical checklists. Blocks labelled **Example** illustrate the guidance; adapt their names, paths, commands, and policy choices to the repository rather than treating them as required configuration. Anthropic's official documentation is the source of truth for product capabilities.
 
 ## Operating Ethos
 
-Give Claude room to explore, refactor, investigate, and use tools while constraining choices that create drift. It should inspect the codebase, improve weak areas, run checks, and follow evidence, but not invent architecture, coding styles, dependencies, testing patterns, or permission policies for local convenience.
+Give Claude freedom to investigate and improve the code within clear project boundaries. Be brutally strict about implementation shortcuts: fewer mistakes do not justify relaxing the conventions that prevent hacks. “Be careful” is insufficient; name forbidden patterns, define legitimate exceptions, and reject violations even when the happy path works. Keep instructions short, load detail when relevant, and enforce deterministic conventions with tooling.
 
-A good setup makes preferred paths easy to find and weak paths hard to take. Skills, rules, agents, references, and commands help only when Claude can discover them from normal task wording. An orphaned Markdown file is not an effective convention or workflow.
+In particular, forbid catch-and-carry-on, sloppy logging, speculative fallbacks, blind retries, and defaults that conceal missing required values. Fix the violated contract or owning abstraction. Recovery is acceptable only when it follows an explicit policy and preserves valid state; see [Failure handling and forbidden shortcuts](guide/engineering-conventions.md#failure-handling-and-forbidden-shortcuts).
 
-Use skills and scoped rules to provide technical context without bloating always-on memory. Route them automatically when the task implies their use; users should not need to know a skill's name or request it explicitly.
+**Do:**
 
-Claude often takes the locally convenient route: patching weak structure, duplicating nearby patterns, preserving accidental behavior, weakening types, skipping tests, or using output-focused hacks. Counter this with explicit conventions, verification, approval gates, and mechanical formatting.
+- Define the intended outcome and the checks that prove it.
+- Search callers, implementations, and similar code before editing.
+- Reuse canonical patterns; refactor weak structure when the current task needs it.
+- Consider solutions creatively, present the best first regardless of cost or complexity, and explain the trade-offs of cheaper alternatives.
+- Keep state, invariants, and external-service contracts behind clear ownership boundaries.
+- Make skills and scoped rules discoverable from ordinary task wording and touched paths.
+- Verify claims with source, tests, and runtime evidence appropriate to the change.
+- Report the outcome, verification, and material decisions concisely.
+- After any significant change, before commits, spawn an agent to do a non-pedantic code review - tell it to skip the minor and trivial stuff and focus on real problems.
+- For research and reading, spawn an agent on a fast cheap model and have it report back.
 
-The setup needs three properties:
+**Don't:**
 
-- **bounded freedom**: let Claude investigate, refactor for readiness, and use tools inside approved areas;
-- **automatic discoverability**: make every important workflow, skill, rule, and specialist agent routable without special prompting;
-- **tight conventions**: define the codebase's allowed shapes so Claude cannot quietly create new ones.
-
-Freedom without conventions creates drift. Conventions without discoverability are ignored. Discoverability without freedom creates a bottleneck. Keep all three in force.
-
-## Common Claude Failure Modes
-
-If the setup does not actively counter these, Claude will keep doing them:
-
-- It copy-pastes locally convenient logic instead of finding or extracting the shared abstraction.
-- It moves code into helpers or interfaces without creating a meaningful abstraction, and exposes state for callers to coordinate instead of preserving encapsulation inside the owning object or module.
-- It makes the smallest possible code change even when the surrounding structure is unready for the new requirement.
-- It invents slight pattern variants because the first few files it read looked "close enough."
-- It does not reliably look around for existing patterns before starting work, so it reinvents the wheel unless explicitly told to search upstream, downstream, and laterally.
-- It sometimes over-engineers in the opposite direction by introducing speculative abstractions that the current codebase does not actually need.
-- It avoids refactoring and test-first discipline unless forced to do them.
-- During difficult bug investigations, it leaves unsuccessful instrumentation and speculative fixes in place, then stacks later conjectures on top until neither the evidence nor the final diff has a trustworthy baseline.
-- It keeps every failing bug reproducer permanently, even when it records obsolete behavior, duplicates stronger coverage, or costs more than the enduring risk justifies.
-- It buries the behaviour of integration and end-to-end tests under procedural setup, navigation, synchronization, and cleanup code instead of extracting those mechanics behind readable application drivers or equivalent test harnesses.
-- It hides dependencies by constructing clients, repositories, clocks, configuration, or other external capabilities inside behavior code, making units difficult to instantiate and test in isolation.
-- Even when it injects an external client, it lets vendor SDK methods, types, errors, and usage patterns spread through application code instead of containing them behind a narrow application-owned adapter.
-- It reaches for mutable static or global state, singletons, and shared instances, creating hidden coupling between callers and tests whose outcomes depend on execution order.
-- It litters otherwise clear code with narration, headings, and explanatory comments instead of trusting good names, types, abstractions, and control flow.
-- It is bad at keeping code formatting consistent unless formatting is handled mechanically.
-- It silently introduces new abstractions, dependencies, or file shapes unless explicitly told to stop and ask.
-- It follows whatever context is most visible, which means bloated root instructions and poorly scoped guidance actively make it worse.
-- It reaches for tools, MCPs, or browser automation before exhausting code-level investigation if those tools are available.
-- It misses reusable workflow instructions when they are not designed to be automatically discoverable from the user's wording.
-- It answers broad review questions from representative samples, then sounds more comprehensive than the evidence supports.
-- It changes code during an audit, destroying the evidence boundary and bypassing review and prioritisation.
-- It overwhelms the user by presenting every manual check, question, and instruction at once instead of guiding them through the work in manageable stages.
-- It over-explains routine work and buries the outcome in implementation detail, making the user read more than is necessary to act or verify the result.
-- It checks whether values are reused without checking whether names carry stable semantic meaning.
-- It treats UI code like prototype presentation work instead of durable product architecture with contracts, naming semantics, and long-term maintenance cost.
-- It treats visible styling as "consistent enough" while missing drift across containers, typography, spacing, borders, corners, shadows, icons, and feedback states.
-- It writes a bare numeric or colour literal whenever styling a new element, because the value is locally obvious and no rule made it look for an owner, which is how one border width ends up authored in over a hundred places.
-- When a shared component resists, it overrules the component from outside — a priority flag, an injected class name, a selector reaching into the component's markup — instead of treating the resistance as a missing variant in the component's own API.
-- It reproduces a shared component's appearance by hand rather than finding it, and will even write a comment saying the copy matches the original instead of reading that as proof the copy should not exist.
-- It draws a semantic structure out of generic containers because styling reaches the visual result faster, producing a table, list, or control that only looks like one.
-- It implements the appearance of a known interaction pattern without its keyboard map or state attributes, and calls the component finished.
-- It chooses a colour, spacing value, or token because the rendered result looks right, rather than because the name matches the meaning, which quietly couples two decisions that later need to diverge.
-- It judges text contrast by eye, and reaches for opacity to make text look secondary, which changes contrast against whatever happens to be behind it and is invisible to any token check.
-- During a consolidation it migrates the state it can see and leaves the loading, empty, and error paths of the same component behind.
-- It reports a refactor as visually neutral on the strength of having read the diff, when every defect that class of work produces is one a diff cannot show.
-
-The following practices address these failure modes structurally.
+- Patch around weak structure or preserve accidental behaviour without a real compatibility requirement.
+- Add speculative abstractions, duplicate implementations, or new conventions without approval.
+- Turn root instructions into a knowledge base or a configuration directory.
+- Use tools merely because they are available, or substitute a sample for a comprehensive audit.
+- Change code during a read-only audit or retain unsupported debugging experiments.
+- Claim behavioural or visual correctness from a clean build alone.
 
 ## Relevant Claude Code Capabilities
 
@@ -81,53 +49,6 @@ Persistence and parallel-work features require clear repository boundaries:
 - **Sandbox network policy can fail closed.** `sandbox.network.strictAllowlist` denies non-allowlisted hosts for sandboxed commands instead of falling back to a prompt. Use it when network egress must be deterministic, alongside filesystem isolation and regular permission rules.
 
 See the official [Memory](https://code.claude.com/docs/en/memory), [Subagents](https://code.claude.com/docs/en/sub-agents), and [Settings](https://code.claude.com/docs/en/settings) documentation.
-
-## The Problem Statement
-
-### Claude's default behavior is locally convenient and globally damaging
-
-Claude Code does not naturally optimize for long-term codebase coherence. It optimizes for completing the current task with the least resistance. That produces three predictable pathologies:
-
-1. It copy-pastes logic instead of abstracting shared behavior.
-2. It duplicates an existing pattern because it did not search broadly enough before writing.
-3. It introduces a slightly different way of doing something because the local context made it look reasonable.
-
-The official [Best Practices](https://code.claude.com/docs/en/best-practices) emphasizes specificity, context, and verification. The larger risk is ongoing structural degradation, not isolated mistakes.
-
-Pattern drift compounds. One error-handling style becomes three. One feature uses a shared helper, another writes the logic inline, and a third invents a wrapper. The result is inconsistent behavior, partial abstractions, and bugs confined to duplicated branches.
-
-Pattern drift often begins when Claude reads only the nearest files before coding. Require a wider search: upstream for callers and shared abstractions, downstream for implementations and consumers, and laterally for similar files, classes, functions, and tests. This prevents reinvention of existing patterns.
-
-Operationally, you should treat Claude like a lazy, inexperienced, tasteless developer with a strong bias against refactoring and TDD. That sounds harsh, but it produces the correct setup instincts. You do not give that developer vague guidance and broad freedom. You give them explicit constraints, clear examples, narrow workflow rules, and approval gates around anything that expands the codebase's conceptual surface area.
-
-### Claude has a minimum-change bias
-
-When adding a feature, Claude often assumes the existing structure is valid and makes the smallest change that fits. This creates long-term structural damage.
-
-Claude often inserts behavior at the nearest plausible point and patches until tests pass. Preparing the codebase first avoids conditionals in the wrong layer, duplicated branches, awkward parameter growth, and embedded special cases.
-
-It also shows up as false reverence for the existing code. Claude often behaves as if the current implementation must be production-hardened, backward compatible, and preserved at all costs even when the project is brand new, has never shipped, or is obviously still in flux. That leads it to add fallbacks, compatibility layers, default values, and defensive branches that the codebase has not earned. In many early or actively evolving projects, the correct move is to change the shape cleanly rather than preserve a nonexistent legacy contract.
-
-Encode a different default:
-
-1. Audit the relevant code.
-2. Assume it is not ready.
-3. Refactor the area into a coherent shape.
-4. Only then add the feature.
-
-If that sequence is not enforced, Claude will happily bolt new behavior onto weak foundations forever.
-
-Require readiness refactoring, not speculative redesign or framework invention. Prepare the affected area to host the change, then implement it.
-
-Claude should propose a cleaner, larger change when justified. It should identify when code needs reshaping, simplification, or replacement instead of preserving accidental behavior with compatibility hacks.
-
-### Context rots, and naive configuration makes it worse
-
-Anthropic's [Memory](https://code.claude.com/docs/en/memory) and [Best Practices](https://code.claude.com/docs/en/best-practices) guidance recommends concise, specific project memory. Do not put every instruction in `AGENTS.md`: it is always-on context, so unnecessary content consumes task budget.
-
-Institutional memory matters, but root `AGENTS.md` is not the place to store all of it. Long-lived projects need discoverable, on-demand context instead.
-
-Root `AGENTS.md` is for non-obvious commands, repository-wide verification expectations, architectural decisions, conventions, repository etiquette, approval boundaries, and dangerous or generated areas. Include an item only when omitting it would predictably reduce reliability. Do not use the file to index `.claude/`; scoped configuration must be discoverable through metadata, path scope, placement, and reference ownership.
 
 ## Guide Map
 
@@ -150,7 +71,7 @@ If you want a practical default setup, use this:
 
 1. A short root `AGENTS.md` containing only crucial repository-wide facts and instructions; scoped Claude configuration must be independently discoverable rather than indexed from this file.
 2. A small rules set for always-on global and path-scoped standing instructions.
-3. A small skill set:
+3. A small skill set covering the relevant workflows. Example names, not required identifiers:
    - `conventions-global`
    - `feature-workflow`
    - `testing-conventions`
@@ -159,7 +80,7 @@ If you want a practical default setup, use this:
    - one skill per subsystem with genuinely distinct conventions
    - `config-maintenance`
 4. Reference documents for detailed conventions, kept outside root `AGENTS.md` instructions and owned by the rule or skill that uses them.
-5. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
+5. Advisory hooks for reminders, diagnostics, audit logs, notifications, and targeted side effects; blocking hooks only for narrow, tested requirements.
 6. `settings.json` for allow/deny behavior and permission posture.
 7. Compiler, language-server, test, and repository-search commands as the first code-investigation layer, with JetBrains MCP preferred for supported IDE semantic operations.
 8. A code graph such as GitNexus only when repository scale and relationship questions justify it and the IDE integration does not already provide the needed evidence.
@@ -167,8 +88,6 @@ If you want a practical default setup, use this:
 10. A code-first MCP policy.
 11. A hard stop-and-ask rule for any new dependency, pattern, abstraction, or convention gap.
 12. An isolated worktree or clone for each parallel write task, with explicit ownership.
-
-A strong setup keeps Claude useful while making drift, duplication, and weak local choices difficult to introduce.
 
 ## Official Sources
 

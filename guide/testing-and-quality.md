@@ -1,48 +1,51 @@
 # Testing and Quality
 
-## Use Test-First Discipline Deliberately
+Tests should express enduring behaviour and provide trustworthy evidence at reasonable cost. Use the repository's chosen test-first discipline, readable scenarios, and controlled debugging experiments.
 
-Encode test-first behavior for non-trivial feature work and reproducible bug fixes when the repository uses that workflow.
+## Test-first discipline
 
-Test-first work counters two failure modes:
+Where the team uses TDD:
 
-- Claude writes plausible code before it has pinned down observable behavior.
-- Claude declares success too early because the code "looks right."
+1. Reproduce a testable bug or specify a feature with the smallest practical failing test.
+2. Implement enough to pass.
+3. Refactor after green.
+4. Show relevant passing checks before claiming the behaviour works.
+5. TDD is hard. Don't get hung up on it.
 
-If your team uses TDD, write it down as a convention, not a vibe. Be explicit about when it applies:
+**Don't:** claim TDD for a workflow that does not follow it, or automatically retain every diagnostic reproducer.
 
-- bug fix: reproduce the bug with the smallest practical failing test first whenever the failure is testable; decide separately whether that reproducer belongs in the permanent suite
-- feature work: add or update the smallest failing test that proves the intended behavior
-- implementation: write the minimum code to get green
-- refactor: clean up only after green
-- completion: do not claim success without showing the relevant tests passing
+Run fast targeted tests before small commits. Use the continuous integration server for full builds; report pending or failed CI separately from successful local checks. See the [Git workflow](workflows-and-maintenance.md#git-workflow).
 
-Do not claim TDD unless the repository follows it. When test-first discipline applies, define the workflow precisely.
+## Readable behavioural tests
 
-## Tests Must Make Behaviour Easy to Read
+The test owns the meaningful starting state, action, and expectations. **Application drivers** own the mechanics of controlling and observing the application. Page Objects, robots, harnesses, builders, and API test clients can serve that boundary.
 
-A test is useful only when a reader can quickly identify the meaningful starting state, the action, and the expected result. Where an intermediate state matters, make that verification equally visible. The setup, exercise, and verification phases should be apparent from the semantic operations and spacing in the test; they should not need `Arrange`, `Act`, and `Assert` narration to become understandable.
+A test that is more complex than the code it is testing is simply not valid.
 
-Integration, system, and end-to-end tests may need machinery to launch the application, seed data, authenticate, navigate, construct requests, synchronize, observe state, capture diagnostics, and clean up. Those mechanics are not the behavior under test. Large procedural test classes indicate missing test infrastructure.
 
-Use **application drivers** as the generic name for abstractions that control and observe the system under test. Local names may include test harnesses, test DSLs, Page Objects, component objects, robots, fixture builders, API test clients, or Screenplay actors and tasks. The ownership boundary matters more than the name:
+**Do:**
 
-> The test owns the scenario, behaviourally meaningful inputs, actions, and expectations. Drivers own the mechanics required to control and observe the application.
+- A project should define "types" of tests (unit, integration etc) and clearly define the difference.
+- Your build or test suite should enforce strict time limits which can be per test or more wide-ranging.
+- Write integration and end-to-end scenarios in application or domain language.
+- Keep scenario-defining values, important preconditions, intermediate checks, and final expectations visible.
+- Use blank lines to make the stages of a test case (setup, sanity check, execute, verify etc) clear and separated
+- Extract non-trivial setup, navigation, request construction, selectors, synchronization, diagnostics, and cleanup into focused drivers.
+- Give test drivers intent-based operations, deterministic waiting, useful failure evidence, and isolated lifetimes.
+- Test drivers should abstract some of the details of the underlying system, like waiting for asynchronous behavior to complete.
+- Improve the driver before adding a scenario that would otherwise accumulate procedural machinery.
+- Keep expected results independent of the production calculation under test.
+- "Helpers" are an antipattern - instead, endevour to model state and behaviour.
 
-Required rules:
+**Don't:**
 
-- Integration and end-to-end test bodies must read in application or domain language rather than transport, framework, selector, or infrastructure language.
-- Extract non-trivial application control, environment setup, navigation, request construction, synchronization, observation, and cleanup mechanics from the test class into focused drivers or equivalent harness abstractions.
-- Keep values and state transitions that explain the scenario visible in the test. Do not hide the reason for the test inside a generic fixture, global setup hook, or opaque helper.
-- Make important precondition checks and final expectations explicit in the scenario, either as ordinary assertions over values returned by a driver or as clearly named semantic verification operations.
-- Give drivers intent-based operations. Do not create a thin layer that merely renames selectors, button presses, HTTP endpoints, framework calls, or vendor SDK methods one for one.
-- Prefer several cohesive capability or surface drivers over one god-driver that knows the entire product.
-- Centralize deterministic synchronization and useful failure diagnostics in the driver. Do not spread arbitrary sleeps, polling loops, screenshot plumbing, or retry behaviour through test bodies.
-- Do not calculate expected results with the same production logic being tested. A driver may observe and translate application state, but the test's expectation must remain independently meaningful.
-- Give each test an isolated, explicit starting state. Driver reuse must not introduce shared mutable state, order dependence, or hidden cleanup requirements.
-- When adding a test exposes substantial procedural code in the test class, perform a readiness refactor: extract or improve the driver first, then write the short behavioural scenario against it.
+- Create a one-for-one wrapper around selectors or SDK calls, or one god-driver for the whole product.
+- Hide intent in global fixtures or generic helpers.
+- Spread sleeps, polling, screenshots, and retries through test bodies (use a driver).
+- Introduce shared mutable state, execution-order dependence, or hidden cleanup.
+- Extract every literal or add ceremony to a simple unit test.
 
-For example, prefer a test shaped like this:
+**Example test:** the driver names and scenario are illustrative.
 
 ```ts
 const account = await accounts.create({ plan: "trial" });
@@ -54,195 +57,121 @@ await subscriptions.cancelCurrent();
 await subscriptions.expectCancelled();
 ```
 
-Drivers own account creation, sign-in, navigation, implementation controls, readiness detection, and failure diagnostics. The test retains the scenario: account plan, action, meaningful intermediate state, and expected outcome.
+A product-aware reader should understand this scenario without knowing its framework or application plumbing. Names and spacing should make phases clear without `Arrange`/`Act`/`Assert` narration.
 
-Do not extract every literal or create ceremony around a small unit test. The boundary is mechanical application-control knowledge: once that knowledge is non-trivial, repeated, or capable of obscuring the scenario, it does not belong in the test class. The acceptance test for the abstraction is whether a product-aware reader can understand the behaviour without first understanding the test framework or application plumbing.
+## Controlled bug investigation
 
-## Bug Investigation Is a Sequence of Controlled Experiments
+Each speculative change is a reversible experiment against a known baseline.
 
-During difficult investigations, Claude often leaves failed experiments in place and stacks new ones on top. This destroys the baseline and can make a fix depend on unsupported changes.
+1. Record the working tree and preserve pre-existing user changes.
+2. Define the observed failure and smallest reliable reproducer.
+3. State one hypothesis and the observation that would support or falsify it.
+4. Make one minimal reversible experiment and run the reproducer.
+5. Retain only changes producing predicted or clearly useful evidence.
+6. Reverse negative, irrelevant, or ambiguous experiments completely before the next hypothesis.
+7. Inspect the diff to confirm it contains only the baseline and justified changes.
+8. Verify the supported fix and remove temporary instrumentation without a deliberate final role.
 
-Treat every speculative change as a reversible experiment:
+**Don't:** stack failed conjectures, call ambiguity success, or use a broad reset that discards unrelated work. This applies to logging, probes, flags, timing changes, speculative fixes, and test modifications alike.
 
-1. Record the current working-tree baseline and preserve any pre-existing human changes.
-2. State one hypothesis and the observation that would support or falsify it.
-3. Make the smallest reversible change needed to test it. This includes temporary logging, probes, feature flags, timing changes, test modifications, and speculative fixes.
-4. Run the specific reproducer and classify the result.
-5. If the attempt produces the predicted result or clearly identified useful evidence, retain only the changes whose value is now understood and continue deliberately.
-6. If the result is negative, irrelevant, or ambiguous, completely reverse that experiment before testing the next hypothesis.
-7. Inspect the diff before the next attempt and confirm that it contains only the original baseline plus changes justified by evidence.
+## Reproducer retention
 
-Ambiguity is not success. If Claude cannot name the useful evidence an experiment produced, the experiment failed and must be removed. Never stack a new conjecture on top of an unsuccessful one. Reverse only the current experiment; do not use a broad reset or checkout that would discard the user's existing work.
+A reproducer supports diagnosis; a permanent test protects an enduring contract or material risk. Decide after the fix:
 
-Remove temporary instrumentation when the investigation ends unless it is deliberately retained as supported product instrumentation. The final change should contain only the fix and selected verification.
+| Decision | When |
+| --- | --- |
+| Keep or rewrite | It covers a meaningful boundary, invariant, transition, or failure risk at acceptable cost. |
+| Consolidate | A clearer, cheaper, or better-layered test can protect the same contract. |
+| Remove | It records obsolete implementation, duplicates stronger coverage, protects an impossible or retired failure, is unstable, or costs more than its remaining value. |
 
-## A Bug Reproducer Is Not Automatically a Permanent Test
+Consider runtime, fixtures, flakiness, maintenance, cognitive load, and resistance to legitimate refactoring. Maintain the suite as code: proportionately refactor, consolidate, or remove nearby tests while preserving valuable coverage.
 
-A failing reproducer and a permanent regression test serve different purposes. The reproducer is diagnostic scaffolding: it proves the failure, constrains the investigation, and demonstrates that the proposed fix changes the observed outcome. A permanent test is executable specification: it protects an enduring behavioural contract or material risk at an acceptable ongoing cost.
+**Do:** substantiate claimed redundancy where practical with a targeted mutation or temporary reintroduction of the fault that makes the retained suite fail.
 
-After the fix, deliberately retain, rewrite, consolidate, or remove the reproducer:
+**Don't:** keep a test solely because it found a bug, or delete it solely because the bug is fixed.
 
-- **Keep or rewrite it** when the bug exposed a meaningful previously uncovered boundary, invariant, state transition, interaction, or failure mode whose regression risk justifies permanent coverage.
-- **Consolidate it** when an existing or more canonical test can express the same contract more clearly, cheaply, or at a more appropriate layer.
-- **Remove it** when it merely records the old implementation, duplicates stronger coverage, protects behaviour that is no longer required, exercises a failure class the new design makes impossible, is unstable, or costs more to run and maintain than the remaining risk warrants.
+## Automatically routed skills
 
-Test cost includes execution time, fixture and environment setup, flakiness, maintenance, cognitive load, and unnecessary resistance to legitimate refactoring. A bug having occurred once is evidence about risk, not an automatic claim on permanent suite capacity.
+Use task-matching descriptions and local scope so guidance loads before tests or experiments are written. Path-scoped test rules may add concise local policy without copying the whole skill.
 
-Treat the test suite as maintained code, not an append-only record. Refactor, rewrite, consolidate, or remove nearby tests when this improves clarity, eliminates redundant or obsolete coverage, reduces unjustified cost, or better expresses the enduring behavioural contract. Keep cleanup proportionate and preserve coverage whose value exceeds its cost.
+### Testing conventions
 
-When other tests make a reproducer redundant, verify the claim where practical: temporarily reintroduce the fault or make an equivalent targeted mutation and confirm that the retained suite fails. This demonstrates redundancy without requiring equivalent coverage for every past bug.
-
-Do not keep a test merely because it helped find a bug, and do not remove it merely because the bug is fixed. Keep the smallest, clearest set of tests whose enduring behavioural and risk-reduction value exceeds their continuing cost.
-
-## Recommended Automatically Routed Skills
-
-The principles above will not reliably affect Claude merely because they exist in a project document. Make them load before tests or experiments are written by using model-invocable skills whose descriptions match ordinary requests. A path-scoped rule can additionally enforce the key test-shape requirements for the repository's integration and end-to-end test directories, but should contain only the concise local policy rather than duplicate the full skill.
-
-### Testing Conventions
+**Example skill:** adapt its triggers and process to the repository’s testing conventions.
 
 ```md
 ---
-description: Use automatically when creating, changing, reviewing, or refactoring unit, integration, system, UI, or end-to-end tests and test infrastructure. Enforces readable behavioural scenarios, focused application drivers, test isolation, and deliberate test-suite maintenance. Do not use when only running an unchanged test suite.
+description: Use when creating, changing, reviewing, or refactoring tests and test infrastructure. Excludes running an unchanged suite.
 ---
 
 # Testing Conventions
 
-1. Identify the behaviour, boundary, and appropriate test layer before writing the test.
-2. Inspect nearby tests, fixtures, drivers, harnesses, Page Objects, builders, and canonical assertion patterns.
-3. Make the test body express the meaningful starting state, action, and expectation in application or domain language. Keep important intermediate verification explicit.
-4. Put non-trivial setup, application control, navigation, transport, selectors, synchronization, observation, diagnostics, and cleanup behind focused drivers or equivalent harness abstractions. Do not accumulate those mechanics in the test class.
-5. Keep scenario-defining values visible. Do not hide intent in global setup, opaque fixtures, or generic helpers.
-6. Give drivers semantic intent-based operations, deterministic waiting, useful failure diagnostics, and isolated lifetimes. Do not create a one-for-one wrapper or a shared mutable god-driver.
-7. Keep expectations independent from the production implementation; drivers may observe state but must not reproduce the logic that determines the expected result.
-8. If the existing test infrastructure cannot express the scenario clearly, refactor it for readiness before adding the test. Stop and ask before introducing a genuinely new testing pattern or dependency.
-9. Treat tests as maintained code. Refactor, rewrite, consolidate, or remove nearby tests when that proportionately improves clarity, coverage, reliability, or cost without losing valuable behavioural protection.
-10. Run the narrow test, then the relevant broader suite, and review failure output for diagnostic quality as well as correctness.
+1. Identify the behaviour and test layer; inspect canonical tests and drivers.
+2. Keep scenario state, actions, and expectations visible and independent.
+3. Put non-trivial application-control mechanics behind focused, isolated drivers.
+4. Refactor test infrastructure for readability before adding procedural scenarios.
+5. Maintain nearby tests proportionately without losing valuable protection.
+6. Run appropriate checks and inspect failure diagnostics.
 ```
 
-### Bug Investigation
+### Bug investigation
 
-Keep this workflow in a focused, automatically discoverable skill rather than relying on the user to request it explicitly:
+**Example skill:** adapt the triggers and verification steps to the repository.
 
 ```md
 ---
-description: Use automatically when investigating, reproducing, diagnosing, or fixing a bug, intermittent failure, unexplained runtime behaviour, or failing test. Do not use for a feature request with no observed failure.
+description: Use when investigating, reproducing, diagnosing, or fixing observed bugs, intermittent failures, unexplained runtime behaviour, or failing tests. Excludes feature requests without an observed failure.
 ---
 
 # Bug Investigation
 
-1. Load the applicable subsystem conventions and inspect the relevant code, tests, and logs.
-2. Define the observed failure and the smallest reliable reproducer.
-3. Load the testing conventions and add the smallest practical failing test first when the behaviour is testable. Use or improve the application driver rather than putting non-trivial control mechanics in the test class.
-4. Record the working-tree baseline and preserve pre-existing changes.
-5. For each conjecture, state the hypothesis and expected observation, make one minimal reversible experiment, and run the reproducer.
-6. Retain an experiment only when it produces predicted or clearly useful evidence. Otherwise reverse it completely before trying another conjecture. Never stack unsuccessful experiments.
-7. Implement the supported fix and verify the original failure, nearby behaviour, and relevant broader checks.
-8. Review the final diff and remove temporary logging, probes, flags, timing changes, speculative fixes, and test scaffolding that have no deliberate final role.
-9. Decide separately whether to retain, rewrite, consolidate, or remove the reproducer according to its enduring behavioural value, regression risk, and ongoing cost. When claiming redundant coverage, use a targeted mutation check where practical.
-10. Report the evidence for the diagnosis, what was verified, the permanent test decision, and any residual uncertainty.
+1. Load subsystem and testing conventions; inspect code, tests, and logs.
+2. Define the failure and add a small failing test when practical.
+3. Preserve the baseline and test one explicit hypothesis at a time.
+4. Retain useful evidence; reverse unsupported experiments before continuing.
+5. Implement the supported fix and verify the failure and nearby behaviour.
+6. Remove temporary scaffolding and decide the reproducer's permanent role.
+7. Report diagnostic evidence, verification, test retention, and uncertainty.
 ```
 
-## Recommended Convention Document Format
+## Convention documents and approval
 
-Do not write vague convention prose. Write documents that make drift obvious.
+Each convention needs scope, a canonical pattern, required rules, forbidden alternatives, and a procedure for gaps.
 
-Use this shape:
+**Example convention:** the error policy below illustrates the document shape; use the repository’s approved error model.
 
 ```md
-# Subsystem Error Handling Convention
+# Subsystem Error Handling
 
-Applies to:
-- `<path or subsystem scope>`
+Applies to: `<paths>`
 
-Canonical pattern:
-- Services throw typed domain errors.
-- Boundary handlers translate domain errors into user-facing or transport-level responses.
-- Shared helpers format any common error payload or reporting shape.
+Do:
+- Throw typed domain errors from services.
+- Translate them at boundary handlers using the shared error translator.
 
-Required rules:
-- Do not return ad-hoc `{ ok: false }` objects from services.
-- Do not map domain errors to boundary-specific responses inside lower-level helpers.
-- New entry points must use the shared error translator.
+Don't:
+- Return ad-hoc error objects or invent endpoint-specific payloads.
+- Mix throw-and-return signalling or map transport responses in lower layers.
 
-Forbidden alternatives:
-- Inline `try/catch` response shaping in each route
-- Mixed throw-and-return error signaling
-- Custom error payload shapes per endpoint
-
-If no existing pattern fits:
-- Stop and ask for a convention decision before introducing a new one.
+If no pattern fits: describe the gap, propose options, and wait for a decision.
 ```
 
-This format is strict for a reason. Claude needs to know:
+Give the repository's approval policy one authoritative home at its broadest applicable scope. The proposed policy is to ask before new dependencies, design patterns, abstraction layers, file structures, naming conventions, or solution styles. When a gap appears, explain it, present options, obtain the human decision, record it, and then implement.
 
-- what the canonical pattern is,
-- what alternatives are forbidden,
-- and what to do when the convention does not cover the case.
+**Do:** load conventions before editing, inspect code to confirm the canonical pattern, and update approved decisions and routing together.
 
-## The "Stop and Ask" Rule
+**Don't:** duplicate approval policy across configuration for emphasis, rely on nearby code alone to establish precedent, or use a root configuration index to conceal routing defects.
 
-Give this rule one authoritative home at the broadest scope where it is genuinely required. If it applies to every task in the repository, it earns a place in root `AGENTS.md`. If it applies only to a task type or subsystem, put it in the corresponding skill or path-scoped rule. Do not duplicate it across root instructions, skills, and convention files merely for emphasis; duplicated policy drifts and obscures which version is authoritative.
+## Drift audits
 
-The language should be explicit:
+Audit by concern: errors, APIs, provider leakage, async orchestration, tests, frontend state, semantic naming, design-system coverage, and ownership boundaries.
 
-> Never introduce a new dependency, design pattern, abstraction layer, file structure, naming convention, or solution style without explicit approval. If the codebase does not already establish a pattern for the problem, stop, describe the gap, propose options, and wait for a decision.
+1. Find all in-scope implementations and group distinct patterns.
+2. Establish the canonical pattern through the appropriate decision process.
+3. Refactor approved divergences and record the convention.
+4. Make future work encounter it and enforce deterministic rules mechanically.
 
-This forces Claude to notice conceptual expansion before it occurs.
+**External integrations:** inspect vendor imports and types, adapter error/protocol mapping, application fakes, adapter tests, and the file set a provider replacement would affect. Injection alone does not establish isolation.
 
-## Claude Must Load Conventions Before Writing, Not After
+**UI:** count containers, panels, typography, spacing, borders, surfaces, icons, controls, colours, and loading/empty/error paths. Distinguish raw values, centralised constants, semantic tokens, and shared components. Names must carry stable intent.
 
-A convention system only works if the applicable guidance loads before Claude edits. Make that happen through precise skill descriptions, path-scoped rules, local scope, and references owned by the mechanism that uses them. Requiring root `AGENTS.md` to enumerate or locate conventions conceals routing defects in the configuration.
-
-The correct sequence is:
-
-1. identify the touched subsystem,
-2. load the applicable convention skills,
-3. audit the existing code to confirm the canonical pattern,
-4. write only after the pattern is clear.
-
-Do not accept "Claude will pick it up from the code." Sometimes it will. Often it will infer the wrong local pattern from whichever files it happened to inspect first.
-
-## How to Establish a New Convention
-
-When Claude finds a real gap:
-
-1. it stops,
-2. it describes the missing decision,
-3. the human chooses the pattern,
-4. Claude updates the convention docs and, if needed, the relevant skill,
-5. then Claude implements against the new standard.
-
-Humans own the conceptual surface area; Claude maintains the recorded instructions.
-
-## How to Audit an Existing Codebase for Drift
-
-Before trusting conventions, you may need to discover them the hard way.
-
-Run focused audits by concern:
-
-- error handling,
-- API call structure,
-- external API, SDK, and service leakage,
-- async orchestration,
-- test layout,
-- frontend state,
-- design-system coverage,
-- UI semantic naming,
-- service abstraction boundaries.
-
-For each concern:
-
-1. search the repo for all implementations,
-2. cluster them into distinct patterns,
-3. choose the canonical one,
-4. refactor major divergences,
-5. write the convention down,
-6. then make future work follow it.
-
-An external-integration audit must check more than injection. Provider SDK imports and provider-owned request, response, identifier, and error types should stop at an application-owned adapter. Application tests should substitute the narrow capability; adapter tests should verify translation, error mapping, and provider-specific protocol behavior. Estimate which files a provider replacement would change. Broad changes outside the adapter, composition wiring, configuration, and genuinely provider-specific behavior reveal a leaky boundary.
-
-Focused audits prevent existing drift from becoming the default pattern.
-
-UI audits require category-complete scans, not samples. Cover containers, panels, typography, spacing, borders, surfaces, icons, controls, colours, and loading, empty, and error states. Distinguish raw values, centralised tokens, semantic tokens, and shared components. Names must encode stable intent: `danger`, `surface-panel`, and `separator-subtle` are semantic; `red`, `box2`, and `border-light` require explicit definitions.
-
-For a dedicated interface review, use the evidence, runtime, accessibility, state, and reporting workflow in [UI and UX Audits](ui-ux-audits.md). For a full design-system migration, extend the audit into a counted baseline and keep build, behavioural, and visual confidence separate. [Design-System Refactors](design-system-refactors.md) describes how to prove neutral substitutions, establish screenshot noise floors, predict visual diffs, and report uncovered surfaces without overstating completion.
+Use [UI and UX Audits](ui-ux-audits.md) for read-only runtime and accessibility assessment, and [Design-System Refactors](design-system-refactors.md) for migration baselines and separate build, behavioural, and visual confidence. State the coverage of any sample explicitly.
