@@ -7,6 +7,7 @@ Anthropic's [MCP](https://code.claude.com/docs/en/mcp) docs frame MCP correctly:
 High-value MCP categories in a coding workflow:
 
 - version-accurate docs,
+- IDE semantic analysis, inspections, and refactoring through the [JetBrains MCP server](code-intelligence.md#jetbrains-mcp-for-ide-backed-code-intelligence),
 - locally indexed code relationships when ordinary search cannot reliably enumerate them,
 - database inspection,
 - GitHub and CI/CD state,
@@ -28,7 +29,7 @@ Encode this directly:
 2. read the tests,
 3. read the config,
 4. inspect local logs or outputs,
-5. use a local code-intelligence MCP when the question requires graph-wide relationships;
+5. use a local IDE or code-intelligence MCP when semantic queries, refactorings, or graph-wide relationships require it;
 6. use an external MCP when the answer depends on remote truth or runtime state you cannot infer locally.
 
 This saves context, time, and confusion.

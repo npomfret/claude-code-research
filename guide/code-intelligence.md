@@ -18,7 +18,7 @@ These tools make Claude a better programmer because they reduce guessing. They d
 
 Use this order:
 
-1. **Compiler and language server** for types, definitions, references, rename operations, and diagnostics. Language-native tooling has the best understanding of the language's actual semantics.
+1. **Compiler, language server, and IDE semantic tools** for types, definitions, references, rename operations, and diagnostics. In JetBrains projects, prefer the JetBrains MCP server for supported semantic queries and refactoring operations.
 2. **`rg` and repository search** for exact names, literals, configuration, tests, logs, and conventions. Text search is transparent, fast, and often sufficient.
 3. **Code graph or structural index** when the question spans many files, indirect callers, inheritance, or execution paths.
 4. **AST-aware search and rewriting** when text patterns are too fragile.
@@ -26,7 +26,23 @@ Use this order:
 
 Do not add a heavyweight index merely to answer questions that the compiler or `rg` already answers well. Do not ask Claude to infer a repository-wide relationship from a handful of search results when a graph or language tool can enumerate it.
 
-### GitNexus for repository structure and blast radius
+### JetBrains MCP for IDE-backed code intelligence
+
+The [JetBrains MCP server](https://www.jetbrains.com/help/idea/mcp-server.html) exposes IDE capabilities to Claude Code. IntelliJ IDEA includes it from version 2025.2; enable it under **Settings → Tools → MCP Server** and use client auto-configuration or copy the connection configuration.
+
+The current documentation includes:
+
+- `search_symbol` and `get_symbol_info` for locating and understanding symbols;
+- `analyze_calls` for incoming and outgoing call hierarchies;
+- `get_file_problems` and `lint_files` for inspections;
+- `rename_refactoring` for semantic renames;
+- build and run-configuration tools for verification.
+
+Prefer these operations where supported: they let Claude use the IDE's understanding of the project. Confirm availability in the installed IDE's exposed-tool list; support depends on version, language, plugins, and project indexing. Review refactoring diffs and run relevant checks.
+
+JetBrains MCP is the preferred direction for projects using a supported JetBrains IDE. As its semantic and analysis coverage grows, it may supersede GitNexus for those projects. That is an expectation, not a claim of complete feature parity today. Keep GitNexus only where it adds useful graph, execution-flow, or diff-impact evidence the IDE integration does not provide.
+
+### GitNexus for additional repository structure and blast radius
 
 [GitNexus](https://github.com/nxpatterns/gitnexus) indexes a local repository into a knowledge graph derived from Tree-sitter parsing and language-aware relationship resolution. Its CLI and MCP tools expose symbol context, incoming and outgoing calls, imports, inheritance, execution flows, paths between symbols, diff impact, and upstream blast radius. That directly supports the audit step this guide requires.
 

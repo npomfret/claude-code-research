@@ -139,7 +139,7 @@ Detailed guidance lives in focused chapters that can be read, maintained, and re
 - [UI and UX Audits](guide/ui-ux-audits.md) — read-only, evidence-backed audits of interface defects, accessibility, runtime behaviour, visual drift, state coverage, and design-system ownership.
 - [Database Correctness and Scale](guide/database.md) — normalization, transactions, constraints, indexes, and safe denormalization decisions.
 - [Testing and Quality](guide/testing-and-quality.md) — readable driver-backed tests, controlled bug investigation, deliberate regression-test retention, TDD, convention design, stop-and-ask rules, and drift audits.
-- [Code Intelligence](guide/code-intelligence.md) — repository search, GitNexus, ast-grep, dependency-cruiser, and Knip.
+- [Code Intelligence](guide/code-intelligence.md) — repository search, JetBrains MCP, GitNexus, ast-grep, dependency-cruiser, and Knip.
 - [Workflows and Configuration Maintenance](guide/workflows-and-maintenance.md) — audit → refactor → implement → verify, Git policy, progressive validation, and keeping Claude configuration current.
 - [Integrations, Hooks, and Permissions](guide/integrations-and-permissions.md) — MCP strategy, hooks, settings, sandboxing, and permission posture.
 - [Parallel Work](guide/parallel-work.md) — subagents, worktrees, ownership, and merge avoidance.
@@ -161,8 +161,8 @@ If you want a practical default setup, use this:
 4. Reference documents for detailed conventions, kept outside root `AGENTS.md` instructions and owned by the rule or skill that uses them.
 5. Hooks for audit logs, lightweight reminders, notifications, and targeted side effects.
 6. `settings.json` for allow/deny behavior and permission posture.
-7. Compiler, language-server, test, and repository-search commands as the first code-investigation layer.
-8. A code graph such as GitNexus only when repository scale and relationship questions justify it.
+7. Compiler, language-server, test, and repository-search commands as the first code-investigation layer, with JetBrains MCP preferred for supported IDE semantic operations.
+8. A code graph such as GitNexus only when repository scale and relationship questions justify it and the IDE integration does not already provide the needed evidence.
 9. Structural and static checks such as ast-grep, dependency-cruiser, or Knip where they fit the language and recurring failure modes.
 10. A code-first MCP policy.
 11. A hard stop-and-ask rule for any new dependency, pattern, abstraction, or convention gap.
@@ -192,6 +192,7 @@ Use official documentation to verify Claude Code capabilities. Use each code too
 
 - [On the Use of Agentic Coding Manifests](https://arxiv.org/abs/2509.14744) — an empirical study of 253 public `AGENTS.md` files, useful for distinguishing common content patterns from isolated template advice.
 - [Agent READMEs](https://arxiv.org/abs/2511.12884) — a broader empirical study of repository-level agent context files and the instructions developers prioritize in practice.
+- [JetBrains MCP Server](https://www.jetbrains.com/help/idea/mcp-server.html) — IDE-backed symbol information, call analysis, inspections, refactoring, and build/run tools for coding agents.
 - [GitNexus](https://github.com/nxpatterns/gitnexus) — a repository-intelligence and code-graph tool for exploring dependencies, execution flows, symbols, and the likely blast radius of a change.
 - [ast-grep](https://github.com/ast-grep/ast-grep) — a structural search, linting, and codemod tool that matches syntax trees rather than relying on fragile text patterns.
 - [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) — a dependency-analysis tool for JavaScript and TypeScript that can visualize module relationships and enforce architectural boundaries in CI.
