@@ -8,12 +8,12 @@ It focuses on maintainable architecture, discoverable instructions, proportionat
 
 ## Suggested workflow
 
-Start Codex with a prompt such as this. **Example:** replace `<guide-url>` and adapt the configuration request to the repository.
+Start Codex (yes Codex) with a prompt such as this:
 
 ```
-This repository uses Claude Code. Read the Claude Code guide at <guide-url> and its linked material to understand the product's capabilities and limitations.
+This repository uses Claude Code. Read this Claude Code guide at https://raw.githubusercontent.com/npomfret/claude-code-research/refs/heads/main/claude-code-guide.md and its linked material to understand the product's capabilities and limitations.
 
-Inspect the repository, its configuration, and its code.
+Inspect this repository, its configuration, its code and recent commit history.
 
 Configure Claude Code to plan, implement, test, and improve the codebase with minimal supervision while surfacing meaningful decisions and risks.
 
