@@ -1,6 +1,6 @@
 # Testing and Quality
 
-Tests should express enduring behaviour and provide trustworthy evidence at reasonable cost. Test code deserves the same design care as production code. A reader should be able to understand a scenario, its important preconditions, and its expected outcome without tracing application plumbing.
+Tests should express enduring behaviour and provide trustworthy evidence at reasonable cost. __Test code deserves the same design care as production code__. A reader should be able to understand a scenario, its important preconditions, and its expected outcome without tracing application plumbing.
 
 The first sections cover scenario design, drivers, execution, and test maintenance. The later sections show how to route this guidance to coding agents and maintain wider engineering conventions.
 
