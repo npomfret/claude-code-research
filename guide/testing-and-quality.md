@@ -165,6 +165,8 @@ Never sleep for an arbitrary duration and assume that an asynchronous update has
 
 Put condition-based waiting in the driver. Poll until the expected state is observed, or use a reliable event or framework waiting mechanism that establishes the same condition. Return control to the test only when that condition holds; fail when a bounded deadline expires, reporting the expected condition and last observed state. Any polling interval belongs inside the driver, not in the scenario.
 
+**All `waitFor` methods and equivalent polling, readiness, and assertion waits MUST have short default timeouts.** Choose the deadline to enforce the application's expected responsiveness: users will be annoyed if ordinary interactions take too long. A generous test-case timeout must not allow an individual interaction to wait too long. Longer waits require the discussion and explicit user approval described under [Enforced time limits](#enforced-time-limits).
+
 ```ts
 await orders.submit(order);
 
@@ -173,6 +175,56 @@ await orders.expectConfirmation(order.id);
 ```
 
 The test states the action and the state it needs next. The driver owns how to observe that state, the polling or synchronisation mechanism, the deadline, and failure diagnostics. Waiting for state should observe it without repeating the action that initiated the update.
+
+A basic polling helper can separate **reading state** from **matching the expected state**. The reader supplies the latest value on each attempt; the matcher returns `true` when that value satisfies the condition. Return the matched value so the driver can inspect it further if needed.
+
+```ts
+async function waitFor<T>(
+  readState: (signal: AbortSignal) => Promise<T>,
+  matches: (state: T) => boolean,
+  expected: string,
+): Promise<T> {
+  const timeoutMs = 1_000;
+  const intervalMs = 25;
+  const deadline = performance.now() + timeoutMs;
+  const signal = AbortSignal.timeout(timeoutMs);
+  let lastState: T | undefined;
+
+  while (performance.now() < deadline) {
+    try {
+      lastState = await readState(signal);
+    } catch (error) {
+      if (signal.aborted) break;
+      throw error;
+    }
+
+    const remainingMs = deadline - performance.now();
+    if (remainingMs <= 0) break;
+    if (matches(lastState)) return lastState;
+
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, Math.min(intervalMs, remainingMs)),
+    );
+  }
+
+  throw new Error(
+    `Timed out after ${timeoutMs}ms waiting for ${expected}. ` +
+    `Last observed state: ${JSON.stringify(lastState)}`,
+  );
+}
+```
+
+For example, an order driver's `waitForStatus` method can call the helper like this:
+
+```ts
+return waitFor(
+  (signal) => this.client.getOrder(orderId, { signal }),
+  (order) => order.status === expectedStatus,
+  `order ${orderId} to have status ${expectedStatus}`,
+);
+```
+
+The one-second deadline and 25ms polling interval are illustrative short defaults; choose values that enforce the project's responsiveness requirements. The reader must honour the abort signal so a stalled read cannot outlive the deadline; retain an outer test timeout as a backstop. Keep the matcher fast and free of side effects. Represent an expected pending state as a value the matcher can reject; unexpected reader or matcher errors should fail immediately rather than being silently retried. Format the last observed state safely for diagnostics, omitting sensitive data. Longer timeout exceptions still require explicit user approval under [Enforced time limits](#enforced-time-limits).
 
 ## Test types and suites
 
@@ -242,11 +294,13 @@ Local and CI environments may use different worker limits. Document sensible def
 
 ### Enforced time limits
 
-Every project should choose and enforce strict completion deadlines appropriate to each test type. Large suites, expensive computations, and slow external operations must not leave builds waiting indefinitely with no way to distinguish progress from a hang.
+**The user's application MUST be fast: slow responses annoy users. All default test timeouts and asynchronous wait timeouts MUST be short.** Tests should expose unacceptable latency, and timeout settings must not conceal it. Explicitly configure short defaults for test cases, setup, teardown, drivers, and framework waits, including `waitFor` methods; do not silently inherit generous framework defaults or allow unlimited waits.
 
 Set limits for individual test cases and, where appropriate, test classes or groups, whole suites, and CI jobs. Include setup and teardown in those limits or give them their own deadlines. A timeout must fail the check and stop the stalled work; an outer suite or job deadline should catch hangs that the test runner cannot interrupt.
 
-Unit tests should be very fast. A project might allow at most one second per unit test, already a generous allowance for many in-memory cases; this is an example, not a universal threshold. Integration and end-to-end tests may need longer limits reflecting their dependencies and execution environment. Define these budgets per project rather than inheriting unlimited waits or unexplained framework defaults.
+Unit tests should be very fast. A project might allow at most one second per unit test, already a generous allowance for many in-memory cases; this is an example, not a universal threshold. Define short budgets per project and test type, and keep individual interaction deadlines tied to expected user-facing response times. Suite and CI job deadlines should reflect the number of tests and expected total runtime while still detecting stalls promptly. Integration or end-to-end coverage does not automatically justify long test or wait timeouts.
+
+Some processes are inherently slow, but these are rare exceptions. **Any deviation from the short-timeout rule MUST be discussed with and explicitly approved by the user before implementation.** This includes introducing a longer default, adding a longer timeout override, or increasing an existing timeout. Explain the specific operation, evidence for its expected duration, the proposed limit, and the effect on users. Record the approved exception and its scope; keep it limited to that operation rather than relaxing shared defaults.
 
 Report which test or phase timed out, the elapsed time and configured limit, and useful available diagnostics. Investigate unexpected slowness rather than automatically increasing the timeout.
 
@@ -349,7 +403,8 @@ description: Use when creating, changing, reviewing, or refactoring tests and te
 3. Put non-trivial application-control mechanics and bounded waiting behind focused, isolated drivers.
 4. Give test code the same design care as production code; refactor drivers before adding procedural scenarios.
 5. Maintain nearby tests proportionately without losing valuable protection.
-6. Run appropriate checks and inspect failure diagnostics.
+6. Enforce short default test and `waitFor` timeouts; discuss any deviation with the user and obtain explicit approval before implementation.
+7. Run appropriate checks and inspect failure diagnostics.
 ```
 
 ### Bug investigation
