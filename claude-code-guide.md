@@ -10,6 +10,8 @@ Give Claude freedom to investigate and improve the code within clear project bou
 
 In particular, forbid catch-and-carry-on, sloppy logging, speculative fallbacks, blind retries, and defaults that conceal missing required values. Fix the violated contract or owning abstraction. Recovery is acceptable only when it follows an explicit policy and preserves valid state; see [Failure handling and forbidden shortcuts](guide/engineering-conventions.md#failure-handling-and-forbidden-shortcuts).
 
+Do not use singletons, mutable static state, globals, or environment variables to supply application dependencies. These hide dependencies and make code hard to test in isolation. At runtime startup, validate configuration and construct the application's dependencies in one explicit composition root, then pass each dependency to the code that needs it, normally through required constructor parameters. If deployment requires environment variables, read them only at startup and pass validated values inward. See [Construct at the edges; pass capabilities inward](guide/engineering-conventions.md#construct-at-the-edges-pass-capabilities-inward).
+
 **Do:**
 
 - Define the intended outcome and the checks that prove it.

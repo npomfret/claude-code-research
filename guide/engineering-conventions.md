@@ -72,7 +72,9 @@ Each external API, SDK, or service belongs behind a narrow application-owned ada
 
 ## Construct at the edges; pass capabilities inward
 
-Separate system assembly from behaviour. A unit should be constructible directly with explicit fakes and callable without booting the application or mutating global state.
+Do not use singletons, mutable static state, globals, or environment lookups to obtain application dependencies. These are forbidden dependency patterns: they hide what code needs, couple it to process-wide state, and make tests depend on resets, patching, or execution order.
+
+At runtime startup, construct the application's dependency graph in an explicit composition root. Construct dependencies before their consumers, then pass each consumer exactly what it needs, normally through required constructor parameters. Keep those dependencies on the instance. A unit must be constructible directly with explicit test dependencies and callable without booting the application or mutating global state. Manual constructor wiring is sufficient; a dependency-injection framework is not required.
 
 | Boundary | Responsibility |
 | --- | --- |
@@ -82,7 +84,7 @@ Separate system assembly from behaviour. A unit should be constructible directly
 
 **Do:**
 
-- Pass stable collaborators through constructors or explicit function arguments, and per-call data through method arguments.
+- Require stable collaborators as constructor parameters; use explicit function parameters for function-based code, and method arguments for per-call data.
 - Make constructed objects ready to use without later property injection or hidden initialization.
 - Inject narrow application-owned capabilities for network, databases, filesystems, time, randomness, IDs, scheduling, notifications, analytics, and configuration.
 - Convert raw configuration into typed values at a boundary.
@@ -98,19 +100,43 @@ Separate system assembly from behaviour. A unit should be constructible directly
 - Obtain collaborators from singletons, globals, application delegates, registries, or service locators.
 - Store mutable application state in module variables, static properties, shared instances, or global caches.
 - Hide that state behind static accessors or singleton protocols.
+- Export preconstructed service instances from modules, use lazy `getInstance()` accessors, or add a global `configure()`/`reset()` lifecycle. Wrapping global access in a helper does not make the dependency explicit.
 - Pass a general container or undifferentiated dependency bag inward.
 - Use constructor defaults that silently create production dependencies.
 - Require global reset hooks, execution order, sleeps, or a full framework boot for unit tests.
 
 Immutable constants, stateless functions, and deterministic, cheap, side-effect-free local value construction are valid. Unavoidable platform global state belongs behind an injected adapter. A domain factory may create domain objects; it must not conceal external capabilities.
 
-**Review checks:** required capabilities are visible in the public API; production wiring has an obvious home; tests construct and invoke the unit with in-memory values and fakes. Load this convention for touched code and enforce dependency direction mechanically where possible.
+One runtime-owned instance can be passed to several consumers. That is explicit shared ownership with a defined lifetime; it does not justify a globally accessible singleton. When a dependency must be created later using request or session data, construct and inject a narrow factory at startup and give the resulting instances explicit owners and lifetimes.
+
+**Example:** the composition root receives already validated configuration and wires dependencies before starting the runtime.
+
+```ts
+class ReportService {
+  constructor(private readonly reports: ReportStore) {}
+
+  async publish(report: Report): Promise<void> {
+    await this.reports.save(report);
+  }
+}
+
+async function start(config: RuntimeConfig): Promise<void> {
+  const reports = new DatabaseReportStore(config.database);
+  const service = new ReportService(reports);
+  const server = new ReportServer(config.http, service);
+  await server.start();
+}
+```
+
+Tests construct `ReportService` with an in-memory `ReportStore`. They do not patch a module, change environment variables, or reset a singleton to control its behaviour.
+
+**Review checks:** required capabilities are visible in constructors or function parameters; production wiring has an obvious home; tests can construct two independent instances with different configuration and fakes in the same process without interference. Reject singleton access, static service state, scattered environment reads, and global reset machinery even when tests pass. Load this convention for touched code and enforce dependency direction mechanically where possible.
 
 See [Growing Object-Oriented Software, Guided by Tests](https://growing-object-oriented-software.com/), Mark Seemann's Composition Root, and Fowler on [separating configuration from use](https://martinfowler.com/articles/injection.html#SeparatingConfigurationFromUse).
 
 ## Globals, environment variables, and configuration
 
-Globals hide dependencies and make tests difficult to isolate. Environment variables are process-wide configuration state too: reading `process.env` throughout the application forces tests to mutate shared state and can make results depend on execution order. A config file only improves this when it is loaded explicitly, rather than discovered globally by each consumer.
+Do not use environment variables as an application configuration API. They are process-wide global state: reading `process.env` throughout the application hides dependencies, forces tests to mutate shared state, and can make results depend on execution order. Do not introduce new environment variables or `.env` files by default. Prefer explicit startup input, validate it once, and pass typed configuration to consumers. A config file only improves this when it is loaded explicitly, rather than discovered globally by each consumer.
 
 **Do:**
 

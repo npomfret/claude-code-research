@@ -36,8 +36,10 @@ Keep exceptions beside the instruction they qualify. Put subtree-specific guidan
 - Ask before introducing a new dependency, pattern, abstraction, file layout,
   or naming scheme. Explain plans before broad or risky edits.
 - Keep external systems behind narrow application-owned adapters.
-- Construct dependencies at the edges and pass capabilities inward.
-  Ban mutable globals, static state, and singletons; give state explicit owners.
+- Construct the dependency graph at runtime startup and pass collaborators
+  through required constructor parameters (or explicit function arguments).
+  Ban mutable globals, static state, singletons, and global service accessors;
+  give state explicit owners and lifetimes.
 - Prefer an explicitly supplied config file, validated into an immutable typed object.
   Inject needed settings; keep environment reads at the entry boundary, out of behaviour code.
 - Preserve encapsulation and use intent-based APIs.

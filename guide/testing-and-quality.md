@@ -43,12 +43,12 @@ Consider how code will be tested while designing it: how will a test establish i
 
 **Don't:**
 
-- Hide dependencies in mutable static state, globals, or internally constructed external clients.
+- Hide dependencies in singletons, mutable static state, globals, environment lookups, or internally constructed external clients.
 - Make fields public, add test-only getters, or bypass private access solely so tests can inspect internal state.
 - Add public operations solely to let tests manipulate the implementation.
 - Couple assertions to internal representation when observable behaviour establishes the contract.
 
-A public interface should exist because the application needs it. Tests should exercise that interface without weakening it. An explicit constructor is useful for supplying dependencies in object-oriented code, but its absence alone does not make a class untestable. See [Abstractions and encapsulation](engineering-conventions.md#abstractions-and-encapsulation) and [Construct at the edges; pass capabilities inward](engineering-conventions.md#construct-at-the-edges-pass-capabilities-inward).
+A public interface should exist because the application needs it. Tests should exercise that interface without weakening it. In object-oriented code, supply required collaborators through constructor parameters; function-based code takes explicit arguments. A class with no dependencies does not need an artificial constructor. See [Abstractions and encapsulation](engineering-conventions.md#abstractions-and-encapsulation) and [Construct at the edges; pass capabilities inward](engineering-conventions.md#construct-at-the-edges-pass-capabilities-inward).
 
 ### Configuration without global state
 
@@ -57,6 +57,8 @@ Mutable static or global state hides dependencies and undermines isolation. Read
 Supply the application's required configuration at startup, validate it, and encapsulate it in explicit typed configuration objects. Pass the relevant configuration to the components that need it; do not let them discover values through globals, static accessors, or scattered environment reads. If environment variables are a deployment input, read them only at the startup boundary.
 
 Tests should construct configuration directly in memory and pass it in, without changing the process environment or depending on a developer's configuration files. Test configuration loading and validation separately at their boundary. See [Globals, environment variables, and configuration](engineering-conventions.md#globals-environment-variables-and-configuration).
+
+Two instances with different configuration and external-system fakes must be able to coexist in one process without interference. If ordinary behaviour tests need module patching, singleton resets, static setters, or environment mutation to supply dependencies, fix the production construction boundary rather than adding test machinery around the hidden dependency.
 
 ## Readable behavioural tests
 
