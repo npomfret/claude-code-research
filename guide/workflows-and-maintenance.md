@@ -16,7 +16,7 @@ Use a repeatable workflow for non-trivial changes, with preparation and verifica
 - Search upstream for callers and construction, downstream for implementations and side effects, and laterally for similar code and tests.
 - Find canonical names, error shapes, and helpers before creating variants.
 - Trace provider clients and types into the application; check adapter ownership and replacement impact.
-- Check touched code for global configuration, scattered environment reads, and `.env` dependencies; move configuration loading to the boundary and inject validated settings.
+- Check touched code for static application state, global configuration, and scattered environment reads. Explicitly supplied `.env` files and equivalent sources are allowed; read and validate them immediately at startup, encapsulate the result, and inject settings into dependent code rather than exposing static access.
 - Treat readiness as unproven until the audit establishes it; refactor where needed, including encapsulation and hidden dependencies.
 - Define the intended outcome, preparation, and completion checks in the task or workflow skill.
 - Review failure paths against the [forbidden-shortcut rules](engineering-conventions.md#failure-handling-and-forbidden-shortcuts), even when the happy path and tests pass.

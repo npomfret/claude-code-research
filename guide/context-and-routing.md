@@ -38,11 +38,15 @@ Keep exceptions beside the instruction they qualify. Put subtree-specific guidan
 - Keep external systems behind narrow application-owned adapters.
 - Construct the dependency graph at runtime startup and pass collaborators
   through required constructor parameters (or explicit function arguments).
-  Ban mutable globals, static state, singletons, and global service accessors;
+  Ban static application state, globals, singletons, and global service accessors;
   give state explicit owners and lifetimes.
-- Prefer an explicitly supplied config file, validated into an immutable typed object.
-  Inject needed settings; keep environment reads at the entry boundary, out of behaviour code.
+- Allow explicitly supplied `.env` files and equivalent configuration sources;
+  read and validate them immediately at startup into immutable typed objects.
+  Inject needed settings; prohibit static config access and keep environment
+  reads at the entry boundary, out of behaviour code.
 - Preserve encapsulation and use intent-based APIs.
+- Make fields immutable by default; keep necessary mutable state minimal,
+  private, and explicitly owned, with invariant-preserving transitions.
 - Add comments only for non-obvious public contracts or unavoidable constraints.
 - Do not conceal failures with catch-and-continue, guessed defaults, speculative
   fallbacks, or blind retries. Recovery must follow approved policy and preserve valid state.

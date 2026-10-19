@@ -39,6 +39,7 @@ Consider how code will be tested while designing it: how will a test establish i
 - Give tests fresh instances with independent state rather than requiring global resets.
 - Make time, randomness, and scheduling controllable where they affect behaviour.
 - Verify state transitions through application-facing behaviour, returned results, or meaningful interactions with supplied dependencies.
+- For necessary mutable state, check invariant-preserving transitions and relevant failure or concurrency paths. Check mutation through aliases where it could violate the contract; a read-only field alone does not make its contents immutable.
 - Let difficulty testing a behaviour prompt a review of the design and its responsibilities.
 
 **Don't:**
@@ -54,7 +55,7 @@ A public interface should exist because the application needs it. Tests should e
 
 Mutable static or global state hides dependencies and undermines isolation. Reading environment variables throughout application code has the same problem: a component silently depends on process-wide state, and tests must mutate that state to control it.
 
-Supply the application's required configuration at startup, validate it, and encapsulate it in explicit typed configuration objects. Pass the relevant configuration to the components that need it; do not let them discover values through globals, static accessors, or scattered environment reads. If environment variables are a deployment input, read them only at the startup boundary.
+Explicitly supplied `.env` files and equivalent configuration sources are allowed. Read and validate them immediately at startup, and encapsulate the result in typed, immutable configuration objects. Pass the relevant configuration to the components that need it, normally through required constructor parameters; static application state and static configuration access are not allowed, even for immutable configuration. If environment variables are a deployment input, read them only at the startup boundary.
 
 Tests should construct configuration directly in memory and pass it in, without changing the process environment or depending on a developer's configuration files. Test configuration loading and validation separately at their boundary. See [Globals, environment variables, and configuration](engineering-conventions.md#globals-environment-variables-and-configuration).
 

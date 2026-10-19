@@ -48,6 +48,22 @@ A useful abstraction hides knowledge and owns a decision or invariant. Review it
 
 External systems already create substitution and failure boundaries on first use; they do not need a second provider to justify isolation.
 
+## Immutable state by default
+
+Make class fields immutable wherever possible. Initialise them during construction and use the language's `readonly`, `final`, `let`, or equivalent mechanism to prevent reassignment. Keep injected collaborator references and configuration immutable for the instance's lifetime. Prefer immutable values and returning a new value when data changes.
+
+A non-reassignable reference does not make the referenced object or collection immutable. Protect owned data from mutation through aliases, constructor inputs, returned collections, and nested objects; use immutable representations, defensive copies, or read-only views as appropriate to the contract. A read-only view alone does not prevent another holder of the underlying object from mutating it.
+
+Mutable state requires a concrete behavioural need and careful design:
+
+- Keep it minimal and private, with one explicit owner and a defined lifetime. Derive values instead of storing redundant state that can drift.
+- Define valid states and transitions; expose intent-based operations that preserve invariants rather than public fields or general setters.
+- Keep multi-field updates consistent, including failure, cancellation, and partial-completion paths. Do not expose intermediate invalid state.
+- Control concurrent and asynchronous access using the platform's ownership or synchronisation mechanisms. Check invariants across suspension points and prevent stale work from overwriting newer state.
+- Test meaningful transitions, failure paths, and concurrency risks through observable behaviour; give each test independent instances.
+
+Do not add mutability for convenient wiring, later initialisation, test setup, or caching without an explicit need and invalidation policy. Review each mutable field by asking why it must change, who may change it, and how validity is preserved. This permits necessary instance state; it does not relax the prohibition on static application state.
+
 ## Treat every external system, API, library etc as replaceable
 
 Each external API, SDK, or service belongs behind a narrow application-owned adapter. Injection makes a dependency visible; the adapter contains its provider contract. Always assume we will want to replace it and that job should be easy.
@@ -72,7 +88,7 @@ Each external API, SDK, or service belongs behind a narrow application-owned ada
 
 ## Construct at the edges; pass capabilities inward
 
-Do not use singletons, mutable static state, globals, or environment lookups to obtain application dependencies. These are forbidden dependency patterns: they hide what code needs, couple it to process-wide state, and make tests depend on resets, patching, or execution order.
+Static application state is not allowed, including immutable configuration or service instances exposed through static or global access. Do not use singletons, globals, static accessors, or environment lookups to obtain application dependencies. These are forbidden dependency patterns: they hide what code needs, couple it to process-wide state, and make tests depend on resets, patching, or execution order.
 
 At runtime startup, construct the application's dependency graph in an explicit composition root. Construct dependencies before their consumers, then pass each consumer exactly what it needs, normally through required constructor parameters. Keep those dependencies on the instance. A unit must be constructible directly with explicit test dependencies and callable without booting the application or mutating global state. Manual constructor wiring is sufficient; a dependency-injection framework is not required.
 
@@ -136,11 +152,13 @@ See [Growing Object-Oriented Software, Guided by Tests](https://growing-object-o
 
 ## Globals, environment variables, and configuration
 
-Do not use environment variables as an application configuration API. They are process-wide global state: reading `process.env` throughout the application hides dependencies, forces tests to mutate shared state, and can make results depend on execution order. Do not introduce new environment variables or `.env` files by default. Prefer explicit startup input, validate it once, and pass typed configuration to consumers. A config file only improves this when it is loaded explicitly, rather than discovered globally by each consumer.
+`.env` files and equivalent configuration sources are allowed. Supply the configuration source explicitly to the application, read and validate it immediately at startup, and encapsulate the result in typed, immutable configuration objects. Pass the relevant configuration to dependent code, normally through required constructor parameters.
+
+Static access is the prohibited pattern. Configuration must never be exposed through static fields, global objects, singleton accessors, or a globally imported config instance, even when immutable. Reading `process.env` throughout the application has the same hidden-dependency problem: it forces tests to mutate process-wide state and can make results depend on execution order. Only the startup boundary may read deployment environment values; consumers receive explicit configuration.
 
 **Do:**
 
-- Prefer an explicitly supplied config-file path at the application entry point.
+- Accept an explicitly supplied `.env` file, other config-file path, or equivalent source at the application entry point; read it immediately during startup.
 - Load and validate configuration once; encapsulate it in a typed, immutable configuration object with meaningful fields.
 - Pass relevant configuration through constructors or function arguments. Give each consumer the settings it needs rather than unrestricted access to the whole application config.
 - Construct test configuration directly in memory; test file loading and validation separately at the boundary.
@@ -148,7 +166,7 @@ Do not use environment variables as an application configuration API. They are p
 
 **Don't:**
 
-- Introduce `.env` files or new environment variables as the automatic solution to configuration needs.
+- Load a `.env` file into global state for consumers to access later, or expose parsed configuration through static accessors.
 - Read `process.env`, load dotenv, discover config files, or fetch global configuration inside behaviour code or at module import time.
 - Export a global config singleton, even if its values are immutable; consumers must declare the configuration they depend on.
 - Make tests edit environment variables, depend on a developer's `.env`, or reset shared configuration between runs.

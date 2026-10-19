@@ -10,7 +10,7 @@ Give Claude freedom to investigate and improve the code within clear project bou
 
 In particular, forbid catch-and-carry-on, sloppy logging, speculative fallbacks, blind retries, and defaults that conceal missing required values. Fix the violated contract or owning abstraction. Recovery is acceptable only when it follows an explicit policy and preserves valid state; see [Failure handling and forbidden shortcuts](guide/engineering-conventions.md#failure-handling-and-forbidden-shortcuts).
 
-Do not use singletons, mutable static state, globals, or environment variables to supply application dependencies. These hide dependencies and make code hard to test in isolation. At runtime startup, validate configuration and construct the application's dependencies in one explicit composition root, then pass each dependency to the code that needs it, normally through required constructor parameters. If deployment requires environment variables, read them only at startup and pass validated values inward. See [Construct at the edges; pass capabilities inward](guide/engineering-conventions.md#construct-at-the-edges-pass-capabilities-inward).
+Static application state is not allowed. Do not use singletons, globals, or static accessors to supply application dependencies or configuration. These hide dependencies and make code hard to test in isolation. `.env` files and equivalent configuration sources are allowed: supply the source explicitly to the application, read and validate it immediately at startup, and encapsulate the result in typed, immutable configuration objects. Construct the application's dependencies in one explicit composition root, then pass configuration and collaborators to the code that needs them, normally through required constructor parameters. Consumers must never retrieve configuration statically or read it from the process environment. See [Construct at the edges; pass capabilities inward](guide/engineering-conventions.md#construct-at-the-edges-pass-capabilities-inward).
 
 **Do:**
 
@@ -19,6 +19,7 @@ Do not use singletons, mutable static state, globals, or environment variables t
 - Reuse canonical patterns; refactor weak structure when the current task needs it.
 - Consider solutions creatively, present the best first regardless of cost or complexity, and explain the trade-offs of cheaper alternatives.
 - Keep state, invariants, and external-service contracts behind clear ownership boundaries.
+- Make class fields and owned values immutable wherever possible. Keep necessary mutable state minimal, private, and explicitly owned; guard its invariants through controlled transitions, including failure and concurrent access. See [Immutable state by default](guide/engineering-conventions.md#immutable-state-by-default).
 - Make skills and scoped rules discoverable from ordinary task wording and touched paths.
 - Verify claims with source, tests, and runtime evidence appropriate to the change.
 - Report the outcome, verification, and material decisions concisely.
