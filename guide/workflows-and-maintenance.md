@@ -57,7 +57,7 @@ Put the Git policy in root `AGENTS.md` or an always-loaded rule.
 - **Use worktrees when conflicts are expected or likely,** with explicit writer ownership. Rebase isolation branches onto current `main` and integrate without merge commits.
 - Inspect conflict resolutions and rerun affected checks; address CI failures before claiming full verification.
 
-**Don't:** merge, create merge commits, discard unrelated work to synchronize, or rewrite shared published history or force-push without explicit authorisation. Rebase local unpublished commits.
+**Don't:** merge, create merge commits, discard unrelated work to synchronize, or discard unrelated work to synchronize. Rebase local unpublished commits. Force-pushing is permitted. Prefer `git push --force-with-lease`, and check that you are not discarding commits other agents have pushed.
 
 ## Configuration maintenance
 
