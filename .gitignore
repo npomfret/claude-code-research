@@ -2,3 +2,5 @@
 .gemini
 .idea
 .DS_Store
+.gitnexus/
+tmp/
