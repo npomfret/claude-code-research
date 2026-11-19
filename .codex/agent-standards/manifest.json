@@ -57,7 +57,7 @@
     },
     ".codex/agent-standards/plugins/workflow/skills/verification-gates/SKILL.md": {
       "source": "plugin:workflow@npomfret/skills/verification-gates/SKILL.md",
-      "sha256": "eb4013c0a451a682ef3b0c6ee897151bbcbb70d2794a7e48fd6a9162029c1aa3",
+      "sha256": "63efb4ffd3b45f7945fa5aa2e4814b5e047279833af9ff8857b45d07ce0a4858",
       "link": false,
       "executable": false
     },
@@ -69,13 +69,13 @@
     },
     ".codex/agents/change-reviewer.toml": {
       "source": "plugin:workflow@npomfret/agents/change-reviewer.md",
-      "sha256": "588e05fed5e492118a19d70639f1ae99705e84fc91c9444c75939fe6e1921a8f",
+      "sha256": "cfa43053fb80ddb8dedb1046f86474956446748e831581ae62bd1ebbd1954683",
       "link": false,
       "executable": false
     },
     ".codex/hooks.json": {
       "source": "templates/codex-hooks.py",
-      "sha256": "90051d6d5a20ec8058633247ed216ba2daaa1b286b852fb3a530b700339a163f",
+      "sha256": "db7dcee91fd934d394316ba3b398e029999e4cf05436daae6a774e2e9b3488d8",
       "link": false,
       "executable": false
     },
